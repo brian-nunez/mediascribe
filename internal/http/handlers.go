@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/brian-nunez/video-to-blog-page/internal/db"
@@ -18,12 +19,41 @@ type Handler struct {
 
 func (h Handler) Routes() http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/api/search", h.handleSearch)
 	mux.HandleFunc("/api/jobs", h.handleJobs)
 	mux.HandleFunc("/api/jobs/", h.handleJobSubroutes)
 
 	uiFS := http.FileServer(http.Dir(h.UIRootDir))
 	mux.Handle("/", uiFS)
 	return mux
+}
+
+func (h Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	limit := 10
+	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "limit must be a number"})
+			return
+		}
+		limit = parsed
+	}
+
+	results, err := h.Jobs.SearchChunks(r.Context(), query, limit)
+	if err != nil {
+		handleErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"query":   query,
+		"count":   len(results),
+		"results": results,
+	})
 }
 
 func (h Handler) handleJobs(w http.ResponseWriter, r *http.Request) {

@@ -3,6 +3,7 @@ package embeddings
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"math"
 
 	"github.com/brian-nunez/video-to-blog-page/internal/ollama"
@@ -27,4 +28,16 @@ func Float32ToBytes(values []float32) []byte {
 		binary.LittleEndian.PutUint32(buf[i*4:(i+1)*4], math.Float32bits(v))
 	}
 	return buf
+}
+
+func BytesToFloat32(data []byte) ([]float32, error) {
+	if len(data)%4 != 0 {
+		return nil, fmt.Errorf("invalid embedding byte length %d", len(data))
+	}
+	values := make([]float32, len(data)/4)
+	for i := range values {
+		bits := binary.LittleEndian.Uint32(data[i*4 : (i+1)*4])
+		values[i] = math.Float32frombits(bits)
+	}
+	return values, nil
 }

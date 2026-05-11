@@ -69,3 +69,16 @@ type BlogOutput struct {
 	CreatedAt              time.Time `json:"created_at"`
 	UpdatedAt              time.Time `json:"updated_at"`
 }
+
+type SearchChunkRecord struct {
+	JobID            string  `json:"job_id"`
+	JobTitle         string  `json:"job_title"`
+	JobStatus        string  `json:"job_status"`
+	ChunkID          string  `json:"chunk_id"`
+	ChunkIndex       int     `json:"chunk_index"`
+	StartTimeSeconds float64 `json:"start_time_seconds"`
+	EndTimeSeconds   float64 `json:"end_time_seconds"`
+	Content          string  `json:"content"`
+	Embedding        []byte  `json:"embedding"`
+	EmbeddingDims    int     `json:"embedding_dimensions"`
+}

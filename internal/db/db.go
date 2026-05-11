@@ -402,6 +402,55 @@ FROM blog_outputs WHERE job_id = ?`, jobID)
 	return out, nil
 }
 
+func (s *Store) ListSearchChunkRecords(ctx context.Context, embeddingModel, embeddingBaseURL string) ([]SearchChunkRecord, error) {
+	rows, err := s.db.QueryContext(ctx, `
+SELECT
+	ce.job_id,
+	COALESCE(j.title, ''),
+	j.status,
+	ce.chunk_id,
+	tc.chunk_index,
+	tc.start_time_seconds,
+	tc.end_time_seconds,
+	tc.content,
+	ce.embedding,
+	ce.embedding_dimensions
+FROM chunk_embeddings ce
+JOIN transcript_chunks tc
+	ON tc.id = ce.chunk_id
+JOIN jobs j
+	ON j.id = ce.job_id
+WHERE ce.embedding_model = ?
+  AND ce.embedding_model_base_url = ?
+ORDER BY ce.created_at DESC
+`, embeddingModel, embeddingBaseURL)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]SearchChunkRecord, 0)
+	for rows.Next() {
+		var rec SearchChunkRecord
+		if err := rows.Scan(
+			&rec.JobID,
+			&rec.JobTitle,
+			&rec.JobStatus,
+			&rec.ChunkID,
+			&rec.ChunkIndex,
+			&rec.StartTimeSeconds,
+			&rec.EndTimeSeconds,
+			&rec.Content,
+			&rec.Embedding,
+			&rec.EmbeddingDims,
+		); err != nil {
+			return nil, err
+		}
+		out = append(out, rec)
+	}
+	return out, rows.Err()
+}
+
 var ErrNotFound = errors.New("not found")
 
 func nowRFC3339() string {
