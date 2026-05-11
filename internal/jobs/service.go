@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -21,6 +22,7 @@ import (
 	"github.com/brian-nunez/video-to-blog-page/internal/embeddings"
 	"github.com/brian-nunez/video-to-blog-page/internal/ollama"
 	"github.com/brian-nunez/video-to-blog-page/internal/pipeline"
+	"github.com/brian-nunez/video-to-blog-page/internal/translation"
 )
 
 var ErrNotReady = errors.New("artifact not ready")
@@ -72,6 +74,13 @@ type SearchResult struct {
 	EndTimeSeconds   float64 `json:"end_time_seconds"`
 	Content          string  `json:"content"`
 	Score            float64 `json:"score"`
+}
+
+type TranslationInfo struct {
+	Language  string    `json:"language"`
+	Filename  string    `json:"filename"`
+	Path      string    `json:"path"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func NewService(store *db.Store, runner pipeline.Runner, mgr artifacts.Manager, defaults Defaults) *Service {
@@ -183,10 +192,23 @@ func (s *Service) GetTranscript(ctx context.Context, jobID string) (string, erro
 	return string(payload), nil
 }
 
-func (s *Service) GetBlogMarkdown(ctx context.Context, jobID string) (string, string, error) {
+func (s *Service) GetBlogMarkdown(ctx context.Context, jobID, language string) (string, string, error) {
 	job, err := s.Store.GetJob(ctx, jobID)
 	if err != nil {
 		return "", "", err
+	}
+
+	lang := strings.TrimSpace(language)
+	if lang != "" {
+		translatedPath := filepath.Join(job.ArtifactDir, "final."+sanitizeLang(lang)+".md")
+		raw, err := os.ReadFile(translatedPath)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				return "", "", ErrNotReady
+			}
+			return "", "", err
+		}
+		return string(raw), filepath.Base(translatedPath), nil
 	}
 
 	if job.TranslationEnabled && strings.TrimSpace(job.TranslationLanguage) != "" {
@@ -205,6 +227,104 @@ func (s *Service) GetBlogMarkdown(ctx context.Context, jobID string) (string, st
 		return "", "", err
 	}
 	return string(raw), filepath.Base(finalPath), nil
+}
+
+func (s *Service) TranslateCompletedBlog(ctx context.Context, jobID, language string) (TranslationInfo, error) {
+	lang := strings.TrimSpace(language)
+	if lang == "" {
+		return TranslationInfo{}, fmt.Errorf("language is required")
+	}
+
+	job, err := s.Store.GetJob(ctx, jobID)
+	if err != nil {
+		return TranslationInfo{}, err
+	}
+
+	finalPath := filepath.Join(job.ArtifactDir, "final.md")
+	raw, err := os.ReadFile(finalPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return TranslationInfo{}, ErrNotReady
+		}
+		return TranslationInfo{}, err
+	}
+
+	client := ollama.NewClientWithRetry(
+		job.TranslationModelBaseURL,
+		s.Runner.TranslateModelTimeout,
+		s.Runner.TranslateMaxRetries,
+		s.Runner.ModelRetryBackoff,
+	)
+	translator := translation.OllamaTranslator{
+		Client: client,
+		Model:  job.TranslationModel,
+	}
+	translated, err := translator.TranslateMarkdown(ctx, string(raw), lang)
+	if err != nil {
+		return TranslationInfo{}, err
+	}
+
+	filename := fmt.Sprintf("final.%s.md", sanitizeLang(lang))
+	path := filepath.Join(job.ArtifactDir, filename)
+	if err := os.WriteFile(path, []byte(translated), 0o644); err != nil {
+		return TranslationInfo{}, err
+	}
+
+	if out, err := s.Store.GetBlogOutputByJob(ctx, jobID); err == nil {
+		out.TranslatedMarkdownPath = path
+		out.TranslationLanguage = lang
+		out.UpdatedAt = time.Now().UTC()
+		_ = s.Store.UpsertBlogOutput(ctx, out)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return TranslationInfo{}, err
+	}
+	return TranslationInfo{
+		Language:  sanitizeLang(lang),
+		Filename:  filename,
+		Path:      path,
+		UpdatedAt: info.ModTime().UTC(),
+	}, nil
+}
+
+func (s *Service) ListTranslations(ctx context.Context, jobID string) ([]TranslationInfo, error) {
+	job, err := s.Store.GetJob(ctx, jobID)
+	if err != nil {
+		return nil, err
+	}
+	matches, err := filepath.Glob(filepath.Join(job.ArtifactDir, "final.*.md"))
+	if err != nil {
+		return nil, err
+	}
+
+	re := regexp.MustCompile(`^final\.([^.]+)\.md$`)
+	out := make([]TranslationInfo, 0, len(matches))
+	for _, path := range matches {
+		base := filepath.Base(path)
+		if base == "final.md" {
+			continue
+		}
+		m := re.FindStringSubmatch(base)
+		if len(m) != 2 {
+			continue
+		}
+		st, err := os.Stat(path)
+		if err != nil {
+			continue
+		}
+		out = append(out, TranslationInfo{
+			Language:  m[1],
+			Filename:  base,
+			Path:      path,
+			UpdatedAt: st.ModTime().UTC(),
+		})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].UpdatedAt.After(out[j].UpdatedAt)
+	})
+	return out, nil
 }
 
 func (s *Service) SearchChunks(ctx context.Context, query string, limit int) ([]SearchResult, error) {

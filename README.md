@@ -67,6 +67,9 @@ make run
 - `GET /api/jobs/{job_id}`
 - `GET /api/jobs/{job_id}/transcript`
 - `GET /api/jobs/{job_id}/blog`
+- `GET /api/jobs/{job_id}/blog?lang=es`
+- `GET /api/jobs/{job_id}/translations`
+- `POST /api/jobs/{job_id}/translate`
 - `POST /api/jobs/{job_id}/retry`
 - `GET /api/search?q=...&limit=10`
 

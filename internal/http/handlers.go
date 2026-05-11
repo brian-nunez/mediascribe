@@ -141,7 +141,8 @@ func (h Handler) handleJobSubroutes(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 			return
 		}
-		blog, filename, err := h.Jobs.GetBlogMarkdown(r.Context(), jobID)
+		lang := strings.TrimSpace(r.URL.Query().Get("lang"))
+		blog, filename, err := h.Jobs.GetBlogMarkdown(r.Context(), jobID, lang)
 		if err != nil {
 			if errors.Is(err, jobs.ErrNotReady) {
 				job, jobErr := h.Jobs.GetJob(r.Context(), jobID)
@@ -166,7 +167,47 @@ func (h Handler) handleJobSubroutes(w http.ResponseWriter, r *http.Request) {
 			"job_id":        jobID,
 			"ready":         true,
 			"markdown":      blog,
+			"language":      lang,
 			"download_path": fmt.Sprintf("/artifacts/jobs/%s/%s", jobID, filename),
+		})
+	case "translations":
+		if r.Method != http.MethodGet {
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+			return
+		}
+		items, err := h.Jobs.ListTranslations(r.Context(), jobID)
+		if err != nil {
+			handleErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"job_id":       jobID,
+			"translations": items,
+		})
+	case "translate":
+		if r.Method != http.MethodPost {
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+			return
+		}
+		var req struct {
+			Language string `json:"language"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
+			return
+		}
+		out, err := h.Jobs.TranslateCompletedBlog(r.Context(), jobID, req.Language)
+		if err != nil {
+			if errors.Is(err, jobs.ErrNotReady) {
+				writeJSON(w, http.StatusConflict, map[string]string{"error": "final markdown not ready yet"})
+				return
+			}
+			handleErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"job_id":      jobID,
+			"translation": out,
 		})
 	case "retry":
 		if r.Method != http.MethodPost {

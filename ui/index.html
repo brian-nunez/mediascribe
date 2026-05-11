@@ -133,6 +133,17 @@
               <span id="blog_chevron" class="text-slate-500 transition-transform">▾</span>
             </button>
             <div id="blog_panel" class="border-t border-slate-100 px-4 py-3">
+              <div class="mb-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div class="flex flex-wrap items-end gap-2">
+                  <div class="min-w-[160px] flex-1">
+                    <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500" for="translate_language">Translate Language</label>
+                    <input id="translate_language" class="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-emerald-600 focus:outline-none" placeholder="es, fr, de..." />
+                  </div>
+                  <button id="translate_btn" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">Translate</button>
+                </div>
+                <p id="translation_status" class="mt-2 text-xs text-slate-500">Showing original markdown.</p>
+                <div id="translation_list" class="mt-2 flex flex-wrap gap-2"></div>
+              </div>
               <article id="blog" class="prose prose-sm max-w-none"></article>
             </div>
           </section>
@@ -158,6 +169,10 @@
     const jobMetaEl = document.getElementById('job_meta');
     const transcriptEl = document.getElementById('transcript');
     const blogEl = document.getElementById('blog');
+    const translateLanguageEl = document.getElementById('translate_language');
+    const translateBtnEl = document.getElementById('translate_btn');
+    const translationStatusEl = document.getElementById('translation_status');
+    const translationListEl = document.getElementById('translation_list');
     const transcriptToggleEl = document.getElementById('transcript_toggle');
     const blogToggleEl = document.getElementById('blog_toggle');
     const transcriptPanelEl = document.getElementById('transcript_panel');
@@ -191,6 +206,8 @@
     let previousStageState = {};
     let transcriptOpen = true;
     let blogOpen = true;
+    let selectedBlogLanguage = '';
+    let translationInFlight = false;
 
     async function api(path, opts = {}) {
       const res = await fetch(path, {
@@ -319,6 +336,68 @@
       blogEl.innerHTML = marked.parse(markdown || '');
     }
 
+    function renderTranslationButtons(translations) {
+      translationListEl.innerHTML = '';
+
+      const originalBtn = document.createElement('button');
+      originalBtn.type = 'button';
+      originalBtn.className = `rounded-full border px-2.5 py-1 text-xs ${selectedBlogLanguage === '' ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'}`;
+      originalBtn.textContent = 'original';
+      originalBtn.onclick = async () => {
+        selectedBlogLanguage = '';
+        renderTranslationButtons(translations);
+        await loadBlogForSelection(selectedJob);
+      };
+      translationListEl.appendChild(originalBtn);
+
+      for (const item of translations) {
+        const lang = item.language || '';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `rounded-full border px-2.5 py-1 text-xs ${selectedBlogLanguage === lang ? 'border-indigo-300 bg-indigo-50 text-indigo-700' : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'}`;
+        btn.textContent = lang;
+        btn.onclick = async () => {
+          selectedBlogLanguage = lang;
+          renderTranslationButtons(translations);
+          await loadBlogForSelection(selectedJob);
+        };
+        translationListEl.appendChild(btn);
+      }
+    }
+
+    async function loadTranslationsForJob(jobId) {
+      const data = await api(`/api/jobs/${jobId}/translations`);
+      return data.translations || [];
+    }
+
+    async function loadBlogForSelection(jobId) {
+      const langQuery = selectedBlogLanguage ? `?lang=${encodeURIComponent(selectedBlogLanguage)}` : '';
+      try {
+        const blog = await api(`/api/jobs/${jobId}/blog${langQuery}`);
+        if (blog.ready === false) {
+          if (blog.status === 'failed') {
+            blogEl.innerHTML = `<p class=\"rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600\">${escapeHTML(`Blog unavailable because job failed at stage: ${blog.current_stage || 'unknown'}`)}</p>`;
+          } else {
+            blogEl.innerHTML = `<p class=\"rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600\">${escapeHTML(`Blog not ready yet. Current stage: ${blog.current_stage || 'unknown'}`)}</p>`;
+          }
+        } else {
+          renderMarkdownReady(blog.markdown || '');
+        }
+
+        if (selectedBlogLanguage) {
+          if (!translationInFlight) {
+            translationStatusEl.textContent = `Showing translation: ${selectedBlogLanguage}`;
+          }
+        } else {
+          if (!translationInFlight) {
+            translationStatusEl.textContent = 'Showing original markdown.';
+          }
+        }
+      } catch (err) {
+        blogEl.innerHTML = `<p class=\"rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700\">Blog unavailable: ${escapeHTML(err.message)}</p>`;
+      }
+    }
+
     async function loadJobs() {
       const jobs = await api('/api/jobs');
       jobsEl.innerHTML = '';
@@ -335,7 +414,10 @@
     }
 
     async function selectJob(jobId) {
-      if (selectedJob !== jobId) previousStageState = {};
+      if (selectedJob !== jobId) {
+        previousStageState = {};
+        selectedBlogLanguage = '';
+      }
       selectedJob = jobId;
 
       const job = await api(`/api/jobs/${jobId}`);
@@ -354,15 +436,12 @@
       }
 
       try {
-        const blog = await api(`/api/jobs/${jobId}/blog`);
-        if (blog.ready === false) {
-          blogEl.innerHTML = `<p class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">${escapeHTML(blog.status === 'failed' ? `Blog unavailable because job failed at stage: ${blog.current_stage || 'unknown'}` : `Blog not ready yet. Current stage: ${blog.current_stage || 'unknown'}`)}</p>`;
-        } else {
-          renderMarkdownReady(blog.markdown || '');
-        }
+        const translations = await loadTranslationsForJob(jobId);
+        renderTranslationButtons(translations);
       } catch (err) {
-        blogEl.innerHTML = `<p class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">Blog unavailable: ${escapeHTML(err.message)}</p>`;
+        translationListEl.innerHTML = `<p class="text-xs text-red-600">${escapeHTML(err.message)}</p>`;
       }
+      await loadBlogForSelection(jobId);
     }
 
     async function createJob() {
@@ -441,6 +520,40 @@
     document.getElementById('retry').onclick = async () => {
       try { await retrySelected(); }
       catch (err) { alert(`Retry failed: ${err.message}`); }
+    };
+
+    translateBtnEl.onclick = async () => {
+      if (!selectedJob) {
+        translationStatusEl.textContent = 'Select a job first.';
+        return;
+      }
+      const lang = translateLanguageEl.value.trim();
+      if (lang === '') {
+        translationStatusEl.textContent = 'Enter a language code (example: es).';
+        return;
+      }
+
+      try {
+        translationInFlight = true;
+        translateBtnEl.disabled = true;
+        translateBtnEl.classList.add('opacity-60', 'cursor-not-allowed');
+        translationStatusEl.textContent = `Translating to ${lang}...`;
+        await api(`/api/jobs/${selectedJob}/translate`, {
+          method: 'POST',
+          body: JSON.stringify({ language: lang }),
+        });
+        const translations = await loadTranslationsForJob(selectedJob);
+        selectedBlogLanguage = lang.toLowerCase();
+        renderTranslationButtons(translations);
+        await loadBlogForSelection(selectedJob);
+        translationStatusEl.textContent = `Translation ready: ${selectedBlogLanguage}`;
+      } catch (err) {
+        translationStatusEl.textContent = `Translation failed: ${err.message}`;
+      } finally {
+        translationInFlight = false;
+        translateBtnEl.disabled = false;
+        translateBtnEl.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
     };
 
     transcriptToggleEl.onclick = () => {
