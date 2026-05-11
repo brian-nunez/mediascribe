@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Video to Blog</title>
+  <style>
+    :root {
+      --bg: #f5f7f5;
+      --panel: #ffffff;
+      --text: #1d2220;
+      --muted: #5f665f;
+      --line: #dde3dc;
+      --accent: #197346;
+      --accent-soft: #d9f1e3;
+      --warn: #b44343;
+      --running: #2b7fd8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 10% 0%, #e8f4ea 0, transparent 35%),
+        radial-gradient(circle at 100% 100%, #eef6ff 0, transparent 30%),
+        var(--bg);
+      color: var(--text);
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+    }
+
+    main {
+      width: min(1080px, 94vw);
+      margin: 1.3rem auto;
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: 340px 1fr;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 0.95rem;
+      box-shadow: 0 10px 26px rgba(20, 40, 20, 0.06);
+    }
+
+    h1 {
+      margin: 0 0 0.35rem;
+      font-size: 1.2rem;
+      letter-spacing: 0.01em;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 0.89rem;
+      margin: 0 0 0.8rem;
+    }
+
+    label {
+      display: block;
+      margin: 0.6rem 0 0.3rem;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    input, select, button {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0.52rem 0.62rem;
+      font: inherit;
+      background: #fff;
+      color: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      border: 0;
+      background: linear-gradient(180deg, var(--accent), #115d38);
+      color: #fff;
+      font-weight: 600;
+      margin-top: 0.75rem;
+      transition: transform 0.2s ease, filter 0.2s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.03);
+    }
+
+    .jobs {
+      margin-top: 0.8rem;
+      display: grid;
+      gap: 0.52rem;
+      max-height: 55vh;
+      overflow: auto;
+      padding-right: 0.2rem;
+    }
+
+    .job {
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: 0.56rem;
+      background: #fbfcfb;
+      cursor: pointer;
+      transition: transform 0.16s ease, border-color 0.2s ease;
+    }
+
+    .job:hover {
+      transform: translateY(-1px);
+      border-color: #ccd8ce;
+    }
+
+    .job-title {
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .job-meta {
+      color: var(--muted);
+      font-size: 0.79rem;
+      margin-top: 0.19rem;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 0.45rem;
+      margin-bottom: 0.65rem;
+    }
+
+    .toolbar button {
+      margin-top: 0;
+      width: auto;
+      padding: 0.42rem 0.72rem;
+      font-size: 0.83rem;
+    }
+
+    .progress-wrap {
+      margin: 0.75rem 0 0.65rem;
+      background: #f3f7f4;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      height: 10px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #2c9b62, #63bb8b);
+      transition: width 0.5s ease;
+      position: relative;
+    }
+
+    .progress-fill.running::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(110deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%);
+      animation: sweep 1.2s linear infinite;
+    }
+
+    .stage-list {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 0.48rem;
+      background: #fcfdfc;
+      display: grid;
+      gap: 0.36rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .stage-item {
+      display: grid;
+      grid-template-columns: 18px 1fr auto;
+      align-items: center;
+      gap: 0.5rem;
+      border-radius: 8px;
+      padding: 0.35rem 0.45rem;
+      border: 1px solid transparent;
+      transition: background-color 0.28s ease, border-color 0.28s ease, transform 0.18s ease;
+    }
+
+    .stage-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      border: 2px solid #b9c5ba;
+      background: transparent;
+      transition: all 0.28s ease;
+    }
+
+    .stage-name {
+      font-size: 0.82rem;
+      color: #2f3630;
+    }
+
+    .stage-state {
+      font-size: 0.74rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .stage-item.pending {
+      background: #fbfcfb;
+    }
+
+    .stage-item.running {
+      background: #eef5ff;
+      border-color: #cfe2ff;
+    }
+
+    .stage-item.running .stage-dot {
+      border-color: var(--running);
+      background: var(--running);
+      box-shadow: 0 0 0 0 rgba(43, 127, 216, 0.45);
+      animation: pulse 1.2s ease infinite;
+    }
+
+    .stage-item.done {
+      background: #eef9f2;
+      border-color: #d6ecd8;
+    }
+
+    .stage-item.done .stage-dot {
+      border-color: var(--accent);
+      background: var(--accent);
+    }
+
+    .stage-item.failed {
+      background: #fff1f1;
+      border-color: #f2cbcb;
+    }
+
+    .stage-item.failed .stage-dot {
+      border-color: var(--warn);
+      background: var(--warn);
+    }
+
+    .stage-item.just-done {
+      animation: popIn 0.35s ease;
+    }
+
+    .row {
+      display: grid;
+      gap: 0.8rem;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .pane {
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: 0.66rem;
+      min-height: 320px;
+      white-space: pre-wrap;
+      overflow: auto;
+      font-family: "JetBrains Mono", "Fira Code", monospace;
+      font-size: 0.82rem;
+      line-height: 1.45;
+      background: #fcfdfc;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(43, 127, 216, 0.45); }
+      70% { box-shadow: 0 0 0 9px rgba(43, 127, 216, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(43, 127, 216, 0); }
+    }
+
+    @keyframes sweep {
+      0% { transform: translateX(-120%); }
+      100% { transform: translateX(120%); }
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.98); }
+      100% { transform: scale(1); }
+    }
+
+    @media (max-width: 920px) {
+      main { grid-template-columns: 1fr; }
+      .row { grid-template-columns: 1fr; }
+      .jobs { max-height: 32vh; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="card">
+      <h1>Video to Blog</h1>
+      <p class="muted">Leave Main Model empty to use server env default.</p>
+
+      <label for="source_type">Source Type</label>
+      <select id="source_type">
+        <option value="url">url</option>
+        <option value="path">path</option>
+      </select>
+
+      <label for="source_value">Source URL / Local Path</label>
+      <input id="source_value" placeholder="https://youtube.com/... or /absolute/video.mp4" />
+
+      <label for="main_model">Main Model (optional override)</label>
+      <input id="main_model" placeholder="blank = MAIN_MODEL env" />
+
+      <button id="submit">Create Job</button>
+
+      <div class="jobs" id="jobs"></div>
+    </section>
+
+    <section class="card">
+      <div class="toolbar">
+        <button id="refresh">Refresh</button>
+        <button id="retry">Retry</button>
+      </div>
+
+      <div id="job_meta" class="muted">No job selected</div>
+
+      <div class="progress-wrap"><div class="progress-fill" id="progress_fill"></div></div>
+      <div class="stage-list" id="stage_list"></div>
+
+      <div class="row">
+        <div class="pane" id="transcript">Transcript preview...</div>
+        <div class="pane" id="blog">Markdown preview...</div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const jobsEl = document.getElementById('jobs');
+    const sourceTypeEl = document.getElementById('source_type');
+    const sourceValueEl = document.getElementById('source_value');
+    const mainModelEl = document.getElementById('main_model');
+
+    const jobMetaEl = document.getElementById('job_meta');
+    const transcriptEl = document.getElementById('transcript');
+    const blogEl = document.getElementById('blog');
+    const progressFillEl = document.getElementById('progress_fill');
+    const stageListEl = document.getElementById('stage_list');
+
+    const STAGES = [
+      'download_or_copy_video',
+      'extract_audio',
+      'transcribe_audio',
+      'chunk_transcript',
+      'generate_embeddings',
+      'analyze_chunks',
+      'create_outline',
+      'write_draft',
+      'refine_markdown',
+      'optional_translate_markdown',
+      'mark_complete',
+    ];
+
+    const FRIENDLY_STAGE = {
+      download_or_copy_video: 'Download / Copy Video',
+      extract_audio: 'Extract Audio',
+      transcribe_audio: 'Transcribe Audio',
+      chunk_transcript: 'Chunk Transcript',
+      generate_embeddings: 'Generate Embeddings',
+      analyze_chunks: 'Analyze Chunks',
+      create_outline: 'Create Outline',
+      write_draft: 'Write Draft',
+      refine_markdown: 'Refine Markdown',
+      optional_translate_markdown: 'Translate Markdown',
+      mark_complete: 'Mark Complete',
+    };
+
+    let selectedJob = null;
+    let previousStageState = {};
+
+    async function api(path, opts = {}) {
+      const res = await fetch(path, {
+        headers: { 'content-type': 'application/json' },
+        ...opts,
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `HTTP ${res.status}`);
+      }
+      return res.json();
+    }
+
+    function stageStateFor(job, stage, stageIndex, currentIndex) {
+      const status = job.status;
+      const current = job.current_stage;
+
+      if (status === 'complete') return 'done';
+      if (status === 'failed' && current === stage) return 'failed';
+      if (status === 'running' && current === stage) return 'running';
+
+      if (currentIndex >= 0 && stageIndex < currentIndex) return 'done';
+      return 'pending';
+    }
+
+    function renderStages(job) {
+      const currentIndex = STAGES.indexOf(job.current_stage || '');
+      let doneCount = 0;
+
+      stageListEl.innerHTML = '';
+      const nextState = {};
+
+      STAGES.forEach((stage, i) => {
+        const state = stageStateFor(job, stage, i, currentIndex);
+        nextState[stage] = state;
+        if (state === 'done') doneCount += 1;
+
+        const item = document.createElement('div');
+        item.className = `stage-item ${state}`;
+
+        if (previousStageState[stage] !== 'done' && state === 'done') {
+          item.classList.add('just-done');
+        }
+
+        item.innerHTML = `
+          <span class="stage-dot"></span>
+          <span class="stage-name">${FRIENDLY_STAGE[stage] || stage}</span>
+          <span class="stage-state">${state}</span>
+        `;
+        stageListEl.appendChild(item);
+      });
+
+      previousStageState = nextState;
+
+      let progress = (doneCount / STAGES.length) * 100;
+      if (job.status === 'running' && currentIndex >= 0) {
+        progress = ((doneCount + 0.5) / STAGES.length) * 100;
+      }
+      if (job.status === 'complete') progress = 100;
+      progressFillEl.style.width = `${Math.max(0, Math.min(100, progress)).toFixed(1)}%`;
+      progressFillEl.classList.toggle('running', job.status === 'running');
+    }
+
+    async function loadJobs() {
+      const jobs = await api('/api/jobs');
+      jobsEl.innerHTML = '';
+
+      for (const job of jobs) {
+        const row = document.createElement('div');
+        row.className = 'job';
+        row.innerHTML = `
+          <div class="job-title">${escapeHTML(job.title || job.id)}</div>
+          <div class="job-meta">${job.status} · ${job.current_stage || '-'} · ${job.main_model}</div>
+        `;
+        row.onclick = () => selectJob(job.id);
+        jobsEl.appendChild(row);
+      }
+    }
+
+    async function selectJob(jobId) {
+      if (selectedJob !== jobId) {
+        previousStageState = {};
+      }
+      selectedJob = jobId;
+
+      const job = await api(`/api/jobs/${jobId}`);
+      jobMetaEl.textContent = `${job.id} · ${job.status} · ${job.current_stage || '-'} · ${job.main_model} @ ${job.main_model_base_url}`;
+      renderStages(job);
+
+      try {
+        const transcript = await api(`/api/jobs/${jobId}/transcript`);
+        if (transcript.ready === false) {
+          if (transcript.status === 'failed') {
+            transcriptEl.textContent = `Transcript unavailable because job failed at stage: ${transcript.current_stage || 'unknown'}`;
+          } else {
+            transcriptEl.textContent = `Transcript not ready yet. Current stage: ${transcript.current_stage || 'unknown'}`;
+          }
+        } else {
+          transcriptEl.textContent = transcript.transcript || 'Transcript is empty.';
+        }
+      } catch (err) {
+        transcriptEl.textContent = `Transcript unavailable: ${err.message}`;
+      }
+
+      try {
+        const blog = await api(`/api/jobs/${jobId}/blog`);
+        if (blog.ready === false) {
+          if (blog.status === 'failed') {
+            blogEl.textContent = `Blog unavailable because job failed at stage: ${blog.current_stage || 'unknown'}`;
+          } else {
+            blogEl.textContent = `Blog not ready yet. Current stage: ${blog.current_stage || 'unknown'}`;
+          }
+        } else {
+          blogEl.textContent = blog.markdown || 'Blog output is empty.';
+        }
+      } catch (err) {
+        blogEl.textContent = `Blog unavailable: ${err.message}`;
+      }
+    }
+
+    async function createJob() {
+      const sourceType = sourceTypeEl.value;
+      const sourceValue = sourceValueEl.value.trim();
+      const mainModel = mainModelEl.value.trim();
+
+      const payload = { source_type: sourceType };
+      if (sourceType === 'url') payload.source_url = sourceValue;
+      if (sourceType === 'path') payload.source_path = sourceValue;
+      if (mainModel !== '') payload.main_model = mainModel;
+
+      const out = await api('/api/jobs', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      await loadJobs();
+      await selectJob(out.job_id);
+    }
+
+    async function retrySelected() {
+      if (!selectedJob) return;
+      await api(`/api/jobs/${selectedJob}/retry`, { method: 'POST' });
+      previousStageState = {};
+      await loadJobs();
+      await selectJob(selectedJob);
+    }
+
+    function escapeHTML(str) {
+      return str
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    document.getElementById('submit').onclick = async () => {
+      try {
+        await createJob();
+      } catch (err) {
+        alert(`Create job failed: ${err.message}`);
+      }
+    };
+
+    document.getElementById('refresh').onclick = async () => {
+      try {
+        await loadJobs();
+        if (selectedJob) await selectJob(selectedJob);
+      } catch (err) {
+        alert(`Refresh failed: ${err.message}`);
+      }
+    };
+
+    document.getElementById('retry').onclick = async () => {
+      try {
+        await retrySelected();
+      } catch (err) {
+        alert(`Retry failed: ${err.message}`);
+      }
+    };
+
+    loadJobs().catch(err => {
+      jobsEl.textContent = `Failed to load jobs: ${err.message}`;
+    });
+
+    setInterval(async () => {
+      try {
+        await loadJobs();
+        if (selectedJob) await selectJob(selectedJob);
+      } catch (_) {}
+    }, 8000);
+  </script>
+</body>
+</html>

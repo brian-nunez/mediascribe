@@ -1,0 +1,10 @@
+# Runtime data
+data/*.db
+data/*.db-*
+artifacts/jobs/*
+!artifacts/jobs/.gitkeep
+
+# OS / editor
+.DS_Store
+
+deps/
