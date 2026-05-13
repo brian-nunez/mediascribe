@@ -53,9 +53,10 @@ export ADMIN_SESSION_TTL ?= 72h
 export ADMIN_COOKIE_NAME ?= vtb_admin_session
 
 .PHONY: run run-fresh build tidy clean env env-fresh unset-env deps-whisper admin-create \
-	docker-build docker-up docker-down docker-logs docker-rebuild-embeddings
+	docker-build docker-build-multiarch docker-build-amd64 docker-push-amd64 docker-up docker-down docker-logs docker-rebuild-embeddings docker-verify-deps
 
-DOCKER_IMAGE ?= mediascribe:latest
+DOCKER_IMAGE ?= mediascribe
+DOCKER_TAG ?= latest
 
 deps-whisper:
 	@set -euo pipefail; \
@@ -135,7 +136,16 @@ unset-env:
 	@echo "unset $(APP_ENV_VARS)"
 
 docker-build:
-	docker build -t $(DOCKER_IMAGE) .
+	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) .
+
+docker-build-multiarch:
+	./scripts/docker_build_multiarch.sh IMAGE=$(DOCKER_IMAGE) TAG=$(DOCKER_TAG)
+
+docker-build-amd64:
+	./scripts/docker_build_multiarch.sh IMAGE=$(DOCKER_IMAGE) TAG=$(DOCKER_TAG) PLATFORMS=linux/amd64 LOAD=1
+
+docker-push-amd64:
+	./scripts/docker_build_multiarch.sh IMAGE=$(DOCKER_IMAGE) TAG=$(DOCKER_TAG) PLATFORMS=linux/amd64 PUSH=1
 
 docker-up:
 	docker compose up -d --build
@@ -148,3 +158,6 @@ docker-logs:
 
 docker-rebuild-embeddings:
 	docker compose exec mediascribe rebuild-embeddings
+
+docker-verify-deps:
+	docker compose exec mediascribe sh -lc 'echo ffmpeg=$$(command -v ffmpeg); ffmpeg -version | head -n1; echo yt-dlp=$$(command -v yt-dlp); yt-dlp --version; echo whisper=$$(command -v /opt/whisper/bin/whisper-cli); /opt/whisper/bin/whisper-cli --help >/dev/null && echo whisper-cli=ok'

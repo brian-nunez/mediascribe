@@ -35,8 +35,8 @@ services:
       FFMPEG_BIN: ${FFMPEG_BIN:-ffmpeg}
       YTDLP_BIN: ${YTDLP_BIN:-yt-dlp}
 
-      WHISPER_CPP_BIN: ${WHISPER_CPP_BIN:-/app/deps/whisper.cpp/build/bin/whisper-cli}
-      WHISPER_MODEL_PATH: ${WHISPER_MODEL_PATH:-/app/deps/whisper.cpp/models/ggml-base.bin}
+      WHISPER_CPP_BIN: ${WHISPER_CPP_BIN:-/opt/whisper/bin/whisper-cli}
+      WHISPER_MODEL_PATH: ${WHISPER_MODEL_PATH:-/opt/whisper/models/ggml-base.bin}
       TRANSCRIPT_FALLBACK_PATH: ${TRANSCRIPT_FALLBACK_PATH:-}
 
       ENABLE_TRANSLATION: ${ENABLE_TRANSLATION:-false}
@@ -45,7 +45,6 @@ services:
     volumes:
       - ./data:/app/data
       - ./artifacts:/app/artifacts
-      - ./deps:/app/deps
       - ./logs:/app/logs
     extra_hosts:
       - "host.docker.internal:host-gateway"
