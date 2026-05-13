@@ -33,8 +33,10 @@ type Service struct {
 	Artifacts artifacts.Manager
 	defaults  Defaults
 
-	mu      sync.Mutex
-	running map[string]struct{}
+	mu                  sync.Mutex
+	running             map[string]struct{}
+	translationActivity map[string]TranslationActivity
+	embeddingRebuild    EmbeddingRebuildStatus
 }
 
 type Defaults struct {
@@ -83,14 +85,68 @@ type TranslationInfo struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type TranslationActivity struct {
+	JobID        string     `json:"job_id"`
+	Language     string     `json:"language"`
+	Status       string     `json:"status"`
+	ErrorMessage string     `json:"error_message,omitempty"`
+	StartedAt    time.Time  `json:"started_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	CompletedAt  *time.Time `json:"completed_at,omitempty"`
+}
+
+type EmbeddingRebuildStatus struct {
+	Running                 bool       `json:"running"`
+	StartedAt               *time.Time `json:"started_at,omitempty"`
+	UpdatedAt               *time.Time `json:"updated_at,omitempty"`
+	CompletedAt             *time.Time `json:"completed_at,omitempty"`
+	ErrorMessage            string     `json:"error_message,omitempty"`
+	TotalJobs               int        `json:"total_jobs"`
+	ProcessedJobs           int        `json:"processed_jobs"`
+	ChunkEmbeddingsRebuilt  int        `json:"chunk_embeddings_rebuilt"`
+	OutputEmbeddingsRebuilt int        `json:"output_embeddings_rebuilt"`
+}
+
 func NewService(store *db.Store, runner pipeline.Runner, mgr artifacts.Manager, defaults Defaults) *Service {
 	return &Service{
-		Store:     store,
-		Runner:    runner,
-		Artifacts: mgr,
-		defaults:  defaults,
-		running:   map[string]struct{}{},
+		Store:               store,
+		Runner:              runner,
+		Artifacts:           mgr,
+		defaults:            defaults,
+		running:             map[string]struct{}{},
+		translationActivity: map[string]TranslationActivity{},
 	}
+}
+
+func translationKey(jobID, lang string) string {
+	return jobID + "::" + sanitizeLang(lang)
+}
+
+func (s *Service) setTranslationActivity(item TranslationActivity) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.translationActivity[translationKey(item.JobID, item.Language)] = item
+}
+
+func (s *Service) GetTranslationActivity(jobID string) []TranslationActivity {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]TranslationActivity, 0, 8)
+	for _, item := range s.translationActivity {
+		if item.JobID == jobID {
+			out = append(out, item)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].UpdatedAt.After(out[j].UpdatedAt)
+	})
+	return out
+}
+
+func (s *Service) GetEmbeddingRebuildStatus() EmbeddingRebuildStatus {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.embeddingRebuild
 }
 
 func (s *Service) CreateJob(ctx context.Context, req CreateJobRequest) (db.Job, error) {
@@ -270,6 +326,20 @@ func (s *Service) TranslateCompletedBlog(ctx context.Context, jobID, language st
 		return TranslationInfo{}, err
 	}
 
+	embedClient := ollama.NewClientWithRetry(
+		job.EmbeddingModelBaseURL,
+		s.Runner.EmbeddingModelTimeout,
+		s.Runner.EmbeddingMaxRetries,
+		s.Runner.ModelRetryBackoff,
+	)
+	embedder := embeddings.OllamaEmbedder{
+		Client: embedClient,
+		Model:  job.EmbeddingModel,
+	}
+	if err := pipeline.GenerateBlogOutputEmbeddings(ctx, s.Store, job, embedder); err != nil {
+		return TranslationInfo{}, err
+	}
+
 	if out, err := s.Store.GetBlogOutputByJob(ctx, jobID); err == nil {
 		out.TranslatedMarkdownPath = path
 		out.TranslationLanguage = lang
@@ -287,6 +357,45 @@ func (s *Service) TranslateCompletedBlog(ctx context.Context, jobID, language st
 		Path:      path,
 		UpdatedAt: info.ModTime().UTC(),
 	}, nil
+}
+
+func (s *Service) StartTranslateCompletedBlog(jobID, language string) (TranslationActivity, error) {
+	lang := sanitizeLang(strings.TrimSpace(language))
+	if lang == "" {
+		return TranslationActivity{}, fmt.Errorf("language is required")
+	}
+	now := time.Now().UTC()
+	item := TranslationActivity{
+		JobID:     jobID,
+		Language:  lang,
+		Status:    "running",
+		StartedAt: now,
+		UpdatedAt: now,
+	}
+	s.setTranslationActivity(item)
+
+	go func() {
+		out, err := s.TranslateCompletedBlog(context.Background(), jobID, lang)
+		updated := time.Now().UTC()
+		if err != nil {
+			item.Status = "failed"
+			item.ErrorMessage = err.Error()
+			item.UpdatedAt = updated
+			done := updated
+			item.CompletedAt = &done
+			s.setTranslationActivity(item)
+			log.Printf("manual translation failed for job %s (%s): %v", jobID, lang, err)
+			return
+		}
+		item.Status = "completed"
+		item.UpdatedAt = updated
+		done := updated
+		item.CompletedAt = &done
+		s.setTranslationActivity(item)
+		log.Printf("manual translation completed for job %s (%s): %s", jobID, lang, out.Filename)
+	}()
+
+	return item, nil
 }
 
 func (s *Service) ListTranslations(ctx context.Context, jobID string) ([]TranslationInfo, error) {
@@ -377,6 +486,16 @@ func (s *Service) SearchChunks(ctx context.Context, query string, limit int) ([]
 			}
 		}
 
+		// Precision guardrails:
+		// - For short queries (1-2 terms), require lexical presence.
+		// - For longer queries, allow semantic-only only at very high similarity.
+		if len(queryTerms) <= 2 && lexical <= 0 {
+			continue
+		}
+		if len(queryTerms) > 2 && lexical <= 0 && semantic < 0.84 {
+			continue
+		}
+
 		// Hybrid score: semantic ranking + lexical boost for exact-word retrieval.
 		score := semantic + lexical
 		if score <= 0 {
@@ -403,6 +522,207 @@ func (s *Service) SearchChunks(ctx context.Context, query string, limit int) ([]
 		out = out[:limit]
 	}
 	return out, nil
+}
+
+func (s *Service) BackfillOutputEmbeddings(ctx context.Context) error {
+	items, err := s.Store.ListJobs(ctx)
+	if err != nil {
+		return err
+	}
+	for _, job := range items {
+		if job.Status != "complete" {
+			continue
+		}
+		finalPath := filepath.Join(job.ArtifactDir, "final.md")
+		if _, err := os.Stat(finalPath); err != nil {
+			continue
+		}
+		embedClient := ollama.NewClientWithRetry(
+			job.EmbeddingModelBaseURL,
+			s.Runner.EmbeddingModelTimeout,
+			s.Runner.EmbeddingMaxRetries,
+			s.Runner.ModelRetryBackoff,
+		)
+		embedder := embeddings.OllamaEmbedder{
+			Client: embedClient,
+			Model:  job.EmbeddingModel,
+		}
+		if err := pipeline.GenerateBlogOutputEmbeddings(ctx, s.Store, job, embedder); err != nil {
+			log.Printf("backfill output embeddings for job %s failed: %v", job.ID, err)
+		}
+	}
+	return nil
+}
+
+func (s *Service) RebuildAllEmbeddingsNow(ctx context.Context) (EmbeddingRebuildStatus, error) {
+	jobs, err := s.Store.ListJobs(ctx)
+	if err != nil {
+		return EmbeddingRebuildStatus{}, err
+	}
+	out := EmbeddingRebuildStatus{
+		Running:   false,
+		TotalJobs: len(jobs),
+	}
+
+	chunksRebuilt := 0
+	outputsRebuilt := 0
+	for i, job := range jobs {
+		embedClient := ollama.NewClientWithRetry(
+			job.EmbeddingModelBaseURL,
+			s.Runner.EmbeddingModelTimeout,
+			s.Runner.EmbeddingMaxRetries,
+			s.Runner.ModelRetryBackoff,
+		)
+		embedder := embeddings.OllamaEmbedder{
+			Client: embedClient,
+			Model:  job.EmbeddingModel,
+		}
+
+		chunks, err := s.Store.ListTranscriptChunks(ctx, job.ID)
+		if err == nil && len(chunks) > 0 {
+			records := make([]db.ChunkEmbedding, 0, len(chunks))
+			now := time.Now().UTC()
+			for _, chunk := range chunks {
+				vector, err := embedder.Embed(ctx, chunk.Content)
+				if err != nil {
+					return out, fmt.Errorf("job %s chunk %d: %w", job.ID, chunk.ChunkIndex, err)
+				}
+				records = append(records, db.ChunkEmbedding{
+					ID:                    uuid.NewString(),
+					JobID:                 job.ID,
+					ChunkID:               chunk.ID,
+					Embedding:             embeddings.Float32ToBytes(vector),
+					EmbeddingDimensions:   len(vector),
+					EmbeddingModel:        job.EmbeddingModel,
+					EmbeddingModelBaseURL: job.EmbeddingModelBaseURL,
+					CreatedAt:             now,
+				})
+			}
+			if err := s.Store.ReplaceChunkEmbeddings(ctx, job.ID, records); err != nil {
+				return out, fmt.Errorf("replace chunk embeddings job %s: %w", job.ID, err)
+			}
+			chunksRebuilt += len(records)
+		}
+
+		if err := pipeline.GenerateBlogOutputEmbeddings(ctx, s.Store, job, embedder); err == nil {
+			outputsRebuilt++
+		}
+
+		out.ProcessedJobs = i + 1
+		out.ChunkEmbeddingsRebuilt = chunksRebuilt
+		out.OutputEmbeddingsRebuilt = outputsRebuilt
+	}
+	return out, nil
+}
+
+func (s *Service) StartRebuildAllEmbeddings() (EmbeddingRebuildStatus, error) {
+	s.mu.Lock()
+	if s.embeddingRebuild.Running {
+		current := s.embeddingRebuild
+		s.mu.Unlock()
+		return current, fmt.Errorf("embedding rebuild already running")
+	}
+	now := time.Now().UTC()
+	s.embeddingRebuild = EmbeddingRebuildStatus{
+		Running:      true,
+		StartedAt:    &now,
+		UpdatedAt:    &now,
+		CompletedAt:  nil,
+		ErrorMessage: "",
+	}
+	current := s.embeddingRebuild
+	s.mu.Unlock()
+
+	go s.rebuildAllEmbeddingsWorker()
+	return current, nil
+}
+
+func (s *Service) rebuildAllEmbeddingsWorker() {
+	ctx := context.Background()
+	jobs, err := s.Store.ListJobs(ctx)
+	if err != nil {
+		s.setEmbeddingRebuildFailure(err)
+		return
+	}
+
+	s.mu.Lock()
+	s.embeddingRebuild.TotalJobs = len(jobs)
+	now := time.Now().UTC()
+	s.embeddingRebuild.UpdatedAt = &now
+	s.mu.Unlock()
+
+	chunksRebuilt := 0
+	outputsRebuilt := 0
+
+	for i, job := range jobs {
+		embedClient := ollama.NewClientWithRetry(
+			job.EmbeddingModelBaseURL,
+			s.Runner.EmbeddingModelTimeout,
+			s.Runner.EmbeddingMaxRetries,
+			s.Runner.ModelRetryBackoff,
+		)
+		embedder := embeddings.OllamaEmbedder{
+			Client: embedClient,
+			Model:  job.EmbeddingModel,
+		}
+
+		chunks, err := s.Store.ListTranscriptChunks(ctx, job.ID)
+		if err == nil && len(chunks) > 0 {
+			records := make([]db.ChunkEmbedding, 0, len(chunks))
+			now := time.Now().UTC()
+			for _, chunk := range chunks {
+				vector, err := embedder.Embed(ctx, chunk.Content)
+				if err != nil {
+					s.setEmbeddingRebuildFailure(fmt.Errorf("job %s chunk %d: %w", job.ID, chunk.ChunkIndex, err))
+					return
+				}
+				records = append(records, db.ChunkEmbedding{
+					ID:                    uuid.NewString(),
+					JobID:                 job.ID,
+					ChunkID:               chunk.ID,
+					Embedding:             embeddings.Float32ToBytes(vector),
+					EmbeddingDimensions:   len(vector),
+					EmbeddingModel:        job.EmbeddingModel,
+					EmbeddingModelBaseURL: job.EmbeddingModelBaseURL,
+					CreatedAt:             now,
+				})
+			}
+			if err := s.Store.ReplaceChunkEmbeddings(ctx, job.ID, records); err != nil {
+				s.setEmbeddingRebuildFailure(fmt.Errorf("replace chunk embeddings job %s: %w", job.ID, err))
+				return
+			}
+			chunksRebuilt += len(records)
+		}
+
+		if err := pipeline.GenerateBlogOutputEmbeddings(ctx, s.Store, job, embedder); err == nil {
+			outputsRebuilt++
+		}
+
+		s.mu.Lock()
+		s.embeddingRebuild.ProcessedJobs = i + 1
+		s.embeddingRebuild.ChunkEmbeddingsRebuilt = chunksRebuilt
+		s.embeddingRebuild.OutputEmbeddingsRebuilt = outputsRebuilt
+		t := time.Now().UTC()
+		s.embeddingRebuild.UpdatedAt = &t
+		s.mu.Unlock()
+	}
+
+	s.mu.Lock()
+	s.embeddingRebuild.Running = false
+	done := time.Now().UTC()
+	s.embeddingRebuild.CompletedAt = &done
+	s.embeddingRebuild.UpdatedAt = &done
+	s.mu.Unlock()
+}
+
+func (s *Service) setEmbeddingRebuildFailure(err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.embeddingRebuild.Running = false
+	s.embeddingRebuild.ErrorMessage = err.Error()
+	done := time.Now().UTC()
+	s.embeddingRebuild.CompletedAt = &done
+	s.embeddingRebuild.UpdatedAt = &done
 }
 
 func (s *Service) start(jobID string) {

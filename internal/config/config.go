@@ -33,6 +33,8 @@ type Config struct {
 	YTDLPBin               string
 	TranscriptFallbackPath string
 	EnableTranslation      bool
+	AdminSessionTTL        time.Duration
+	AdminCookieName        string
 }
 
 func Load() (Config, error) {
@@ -51,6 +53,7 @@ func Load() (Config, error) {
 		WhisperModelPath:             envOrDefault("WHISPER_MODEL_PATH", "./deps/whisper.cpp/models/ggml-base.bin"),
 		YTDLPBin:                     envOrDefault("YTDLP_BIN", "yt-dlp"),
 		TranscriptFallbackPath:       os.Getenv("TRANSCRIPT_FALLBACK_PATH"),
+		AdminCookieName:              envOrDefault("ADMIN_COOKIE_NAME", "vtb_admin_session"),
 	}
 
 	mainTimeout, err := durationFromEnv("MAIN_MODEL_TIMEOUT", 30*time.Minute)
@@ -85,6 +88,10 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	adminSessionTTL, err := durationFromEnv("ADMIN_SESSION_TTL", 72*time.Hour)
+	if err != nil {
+		return Config{}, err
+	}
 
 	cfg.DefaultMainModelTimeout = mainTimeout
 	cfg.DefaultMainModelMaxRetries = mainRetries
@@ -94,6 +101,7 @@ func Load() (Config, error) {
 	cfg.DefaultTranslateMaxRetries = translateRetries
 	cfg.ModelRetryBackoff = retryBackoff
 	cfg.EnableTranslation = enableTranslation
+	cfg.AdminSessionTTL = adminSessionTTL
 
 	return cfg, nil
 }

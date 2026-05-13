@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin Blogs</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-900">
+  <main class="mx-auto w-[95%] max-w-7xl py-6">
+    <div id="nav"></div>
+
+    <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div class="mb-3 flex items-center justify-between gap-2">
+        <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Blogs</h2>
+        <button id="refresh_btn" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Refresh</button>
+      </div>
+      <div id="groups" class="space-y-4"></div>
+    </section>
+  </main>
+
+  <script src="/admin/common.js"></script>
+  <script>
+    document.getElementById('nav').innerHTML = AdminCommon.navHTML('blogs');
+    document.getElementById('logout_btn').onclick = AdminCommon.logout;
+
+    let state = { sections: [], blogs: [] };
+
+    function groupedBlogs() {
+      const by = new Map();
+      for (const section of state.sections) by.set(section.id, []);
+      by.set('', []);
+      for (const blog of state.blogs) {
+        const key = String(blog.section_id || '');
+        if (!by.has(key)) by.set(key, []);
+        by.get(key).push(blog);
+      }
+      for (const arr of by.values()) arr.sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')));
+      return by;
+    }
+
+    async function render() {
+      const user = await AdminCommon.requireAuth();
+      if (!user) return;
+      const data = await AdminCommon.loadAdminCatalog();
+      const sections = Array.isArray(data.sections) ? data.sections : [];
+      const blogs = Array.isArray(data.blogs) ? data.blogs : [];
+      state.sections = sections.map(s => ({ id: s.id, name: s.name, sort_order: s.sort_order }));
+      state.blogs = blogs;
+
+      const groups = groupedBlogs();
+      const order = [...state.sections.map(s => ({ id: s.id, name: s.name })), { id: '', name: 'Unsectioned' }];
+      const container = document.getElementById('groups');
+      container.innerHTML = '';
+
+      if (!state.blogs.length) {
+        container.innerHTML = '<p class="rounded-lg border border-dashed border-slate-300 p-3 text-sm text-slate-500">No blogs yet.</p>';
+        return;
+      }
+
+      for (const section of order) {
+        const blogsIn = groups.get(section.id) || [];
+        const block = document.createElement('section');
+        block.className = 'rounded-xl border border-slate-200 bg-slate-50 p-3';
+        block.innerHTML = `<h4 class="text-xs font-bold uppercase tracking-wide text-slate-500">${AdminCommon.escapeHTML(section.name)}</h4><div class="mt-2 space-y-2" data-items></div>`;
+        const itemsEl = block.querySelector('[data-items]');
+
+        if (!blogsIn.length) {
+          itemsEl.innerHTML = '<p class="rounded border border-dashed border-slate-300 bg-white p-2 text-xs text-slate-500">No blogs in this section.</p>';
+          container.appendChild(block);
+          continue;
+        }
+
+        for (const blog of blogsIn) {
+          const row = document.createElement('article');
+          row.className = `rounded-lg border bg-white p-2.5 ${blog.deleted ? 'border-red-200' : 'border-slate-200'}`;
+          row.innerHTML = `
+            <div class="flex flex-wrap items-center gap-2">
+              <p class="text-sm font-semibold text-slate-800">${AdminCommon.escapeHTML(blog.title || 'Untitled')}</p>
+              <span class="rounded border px-1.5 py-0.5 text-[10px] ${blog.published ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-amber-300 bg-amber-50 text-amber-700'}">${blog.published ? 'published' : 'draft'}</span>
+              ${blog.deleted ? '<span class="rounded border border-red-300 bg-red-50 px-1.5 py-0.5 text-[10px] text-red-700">deleted</span>' : ''}
+              <span class="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 text-[10px] text-slate-600">${AdminCommon.escapeHTML(blog.status || '-')}</span>
+              <div class="ml-auto flex items-center gap-1.5">
+                <a href="/admin/blogs/${encodeURIComponent(blog.id)}" class="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100">Edit</a>
+                <button data-publish class="rounded border border-indigo-300 bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100">${blog.published ? 'Unpublish' : 'Publish'}</button>
+                <button data-delete class="rounded border ${blog.deleted ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'border-red-300 bg-red-50 text-red-700 hover:bg-red-100'} px-2 py-1 text-xs font-medium">${blog.deleted ? 'Restore' : 'Delete'}</button>
+              </div>
+            </div>
+            <div class="mt-1 text-xs text-slate-500">Job ${(blog.job_id || '').slice(0, 8)}</div>
+            <div class="mt-1 text-xs">${AdminCommon.sourceLinkHTML(blog)}</div>
+          `;
+
+          row.querySelector('[data-publish]').onclick = async () => {
+            await AdminCommon.api(`/api/admin/blogs/${blog.id}/publish`, {
+              method: 'PUT',
+              body: JSON.stringify({ published: !blog.published }),
+            });
+            await render();
+          };
+
+          row.querySelector('[data-delete]').onclick = async () => {
+            if (blog.deleted) {
+              await AdminCommon.api(`/api/admin/blogs/${blog.id}/restore`, { method: 'POST' });
+            } else {
+              if (!confirm(`Delete blog "${blog.title}"?`)) return;
+              await AdminCommon.api(`/api/admin/blogs/${blog.id}`, { method: 'DELETE' });
+            }
+            await render();
+          };
+
+          itemsEl.appendChild(row);
+        }
+
+        container.appendChild(block);
+      }
+    }
+
+    document.getElementById('refresh_btn').onclick = render;
+    render();
+  </script>
+</body>
+</html>

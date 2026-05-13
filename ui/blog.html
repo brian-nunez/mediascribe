@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Blog | Video to Blog</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,500;6..72,700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f8f8f6;
+      --surface: #ffffff;
+      --line: #e5e7eb;
+      --text: #18181b;
+      --muted: #6b7280;
+    }
+    body {
+      background:
+        radial-gradient(1100px 520px at 90% -12%, #eef2ff 0%, transparent 60%),
+        var(--bg);
+      color: var(--text);
+      font-family: 'Manrope', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    }
+    .brand { font-family: 'Newsreader', Georgia, serif; }
+    .article-title {
+      font-family: 'Newsreader', Georgia, serif;
+      letter-spacing: -0.01em;
+    }
+
+    #article h1, #article h2, #article h3, #article h4 {
+      margin-top: 1.15rem;
+      margin-bottom: 0.5rem;
+      line-height: 1.2;
+      font-family: 'Newsreader', Georgia, serif;
+      font-weight: 700;
+      color: #111827;
+    }
+    #article h1 { font-size: 1.65rem; }
+    #article h2 { font-size: 1.36rem; }
+    #article h3 { font-size: 1.16rem; }
+    #article p {
+      margin: 0.72rem 0;
+      line-height: 1.88;
+      white-space: pre-wrap;
+      color: #1f2937;
+      font-size: 1.06rem;
+    }
+    #article ul, #article ol {
+      margin: 0.72rem 0;
+      padding-left: 1.2rem;
+      color: #1f2937;
+    }
+    #article li { margin: 0.3rem 0; line-height: 1.8; }
+    #article pre {
+      margin: 1rem 0;
+      border-radius: 0.85rem;
+      background: #111827;
+      color: #e5e7eb;
+      padding: 0.95rem;
+      overflow: auto;
+      font-size: 0.86rem;
+      line-height: 1.5;
+      border: 1px solid #0f172a;
+    }
+    #article code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.86em;
+    }
+    #article blockquote {
+      border-left: 3px solid #d1d5db;
+      padding-left: 0.78rem;
+      margin: 0.85rem 0;
+      color: #4b5563;
+      background: #f9fafb;
+      border-radius: 0.2rem;
+    }
+    #article a {
+      color: #0f766e;
+      text-decoration: underline;
+      text-decoration-color: #99f6e4;
+      text-underline-offset: 2px;
+    }
+  </style>
+</head>
+<body>
+  <header class="sticky top-0 z-30 border-b border-[var(--line)] bg-[var(--surface)]/95 backdrop-blur">
+    <div class="mx-auto flex w-[96%] max-w-[1320px] items-center justify-between py-3">
+      <a href="/" class="brand text-[2rem] leading-none tracking-tight">Video to Blog</a>
+      <a href="/" class="rounded-full border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">Back to Feed</a>
+    </div>
+  </header>
+
+  <main class="mx-auto w-[96%] max-w-[1320px] py-5">
+    <section id="content" class="grid gap-5 lg:grid-cols-[240px,minmax(0,760px),1fr]">
+      <aside class="hidden rounded-2xl border border-[var(--line)] bg-white p-4 lg:block">
+        <p class="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-500">Article</p>
+        <p id="left_section" class="mt-2 text-sm font-semibold text-slate-700">Loading…</p>
+        <p id="left_date" class="mt-1 text-xs text-slate-500"></p>
+        <div class="mt-4 border-t border-slate-200 pt-3">
+          <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Languages</p>
+          <div id="left_langs" class="mt-2 flex flex-wrap gap-1"></div>
+        </div>
+      </aside>
+
+      <article class="rounded-2xl border border-[var(--line)] bg-white p-5 shadow-sm sm:p-7">
+        <div id="hero" class="animate-pulse">
+          <div class="h-3 w-28 rounded bg-slate-200"></div>
+          <div class="mt-4 h-10 w-[80%] rounded bg-slate-200"></div>
+          <div class="mt-2 h-4 w-[45%] rounded bg-slate-200"></div>
+        </div>
+
+        <div id="loaded" class="hidden">
+          <p id="section_label" class="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500"></p>
+          <h1 id="title" class="article-title mt-2 text-[2.2rem] leading-[1.1] sm:text-[2.7rem]"></h1>
+          <p id="submeta" class="mt-2 text-sm text-slate-500"></p>
+
+          <div id="match_banner" class="mt-3 hidden rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-xs text-emerald-700"></div>
+
+          <div class="mt-4 flex flex-wrap items-center gap-2 border-y border-slate-200 py-3">
+            <div id="lang_tabs" class="flex flex-wrap gap-1.5"></div>
+            <div class="ml-auto text-[11px] text-slate-500">Read mode</div>
+          </div>
+
+          <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+            <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Source</p>
+            <div id="source_line" class="mt-1 text-xs"></div>
+          </div>
+
+          <div id="article" class="mt-5"></div>
+
+          <details class="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <summary class="cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-500">Transcript</summary>
+            <pre id="transcript" class="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-700"></pre>
+          </details>
+        </div>
+      </article>
+
+      <aside class="hidden lg:block"></aside>
+    </section>
+  </main>
+
+  <script>
+    marked.setOptions({ gfm: true, breaks: true });
+
+    const sectionLabelEl = document.getElementById('section_label');
+    const titleEl = document.getElementById('title');
+    const submetaEl = document.getElementById('submeta');
+    const sourceLineEl = document.getElementById('source_line');
+    const langTabsEl = document.getElementById('lang_tabs');
+    const articleEl = document.getElementById('article');
+    const transcriptEl = document.getElementById('transcript');
+    const matchBannerEl = document.getElementById('match_banner');
+    const heroEl = document.getElementById('hero');
+    const loadedEl = document.getElementById('loaded');
+
+    const leftSectionEl = document.getElementById('left_section');
+    const leftDateEl = document.getElementById('left_date');
+    const leftLangsEl = document.getElementById('left_langs');
+
+    function escapeHTML(value) {
+      return String(value || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function findBlogID() {
+      const pathname = window.location.pathname || '';
+      if (pathname.startsWith('/blog/')) {
+        return decodeURIComponent(pathname.slice('/blog/'.length));
+      }
+      const q = new URLSearchParams(window.location.search);
+      return q.get('id') || '';
+    }
+
+    function sourceHTML(blog) {
+      const source = blog.source_url || blog.source_path || '';
+      if (!source) return '<span class="text-slate-500">unavailable</span>';
+      if (/^https?:\/\//i.test(source)) {
+        return `<a href="${escapeHTML(source)}" target="_blank" rel="noopener noreferrer" class="break-all text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-800">${escapeHTML(source)}</a>`;
+      }
+      return `<span class="break-all font-mono text-[11px] text-slate-700">${escapeHTML(source)}</span>`;
+    }
+
+    function dateLabel(value) {
+      if (!value) return '';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return '';
+      return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    function languageList(blog) {
+      return Array.isArray(blog.languages) ? blog.languages : [];
+    }
+
+    async function loadBlog(id) {
+      const res = await fetch(`/api/public/blogs/${encodeURIComponent(id)}`);
+      if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
+      const payload = await res.json();
+      return payload.blog || null;
+    }
+
+    function renderBlog(blog) {
+      const languages = languageList(blog);
+      let selectedLanguage = new URLSearchParams(window.location.search).get('lang') || 'en';
+      if (!languages.find(x => x.language === selectedLanguage)) {
+        selectedLanguage = languages.find(x => x.language === 'en')?.language || (languages[0]?.language || 'en');
+      }
+
+      sectionLabelEl.textContent = blog.section_name || 'Unsectioned';
+      titleEl.textContent = blog.title || 'Untitled';
+      submetaEl.textContent = `Job ${(blog.job_id || '').slice(0, 8)} · Updated ${dateLabel(blog.updated_at)}`;
+      sourceLineEl.innerHTML = sourceHTML(blog);
+      transcriptEl.textContent = blog.transcript || 'Transcript unavailable';
+
+      leftSectionEl.textContent = blog.section_name || 'Unsectioned';
+      leftDateEl.textContent = dateLabel(blog.updated_at);
+      leftLangsEl.innerHTML = languages.map(item => `<span class="rounded-full border border-slate-300 px-2 py-0.5 text-[11px] text-slate-600">${escapeHTML(item.language)}</span>`).join('');
+
+      const q = new URLSearchParams(window.location.search);
+      const chunk = q.get('chunk') || '';
+      const query = q.get('q') || '';
+      if (chunk) {
+        matchBannerEl.classList.remove('hidden');
+        matchBannerEl.textContent = `Opened from search match: chunk ${chunk}${query ? ` for "${query}"` : ''}`;
+      } else {
+        matchBannerEl.classList.add('hidden');
+      }
+
+      const renderLanguage = () => {
+        const selected = languages.find(x => x.language === selectedLanguage) || languages[0] || { markdown: '' };
+        langTabsEl.innerHTML = languages.map((item) => {
+          const active = item.language === selectedLanguage;
+          const cls = active
+            ? 'border-slate-800 bg-slate-800 text-white'
+            : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-100';
+          return `<button data-lang="${escapeHTML(item.language)}" class="rounded-full border px-2.5 py-1 text-xs transition ${cls}">${escapeHTML(item.language)}</button>`;
+        }).join('');
+
+        articleEl.innerHTML = marked.parse(selected.markdown || '');
+
+        langTabsEl.querySelectorAll('[data-lang]').forEach(btn => {
+          btn.onclick = () => {
+            selectedLanguage = btn.getAttribute('data-lang') || 'en';
+            const u = new URL(window.location.href);
+            u.searchParams.set('lang', selectedLanguage);
+            history.replaceState(null, '', u.pathname + u.search);
+            renderLanguage();
+          };
+        });
+      };
+
+      renderLanguage();
+      heroEl.classList.add('hidden');
+      loadedEl.classList.remove('hidden');
+    }
+
+    async function boot() {
+      const id = findBlogID();
+      if (!id) {
+        heroEl.classList.add('hidden');
+        loadedEl.classList.remove('hidden');
+        loadedEl.innerHTML = '<p class="text-sm text-red-700">Missing blog id in URL.</p>';
+        return;
+      }
+
+      try {
+        const blog = await loadBlog(id);
+        if (!blog) {
+          heroEl.classList.add('hidden');
+          loadedEl.classList.remove('hidden');
+          loadedEl.innerHTML = '<p class="text-sm text-red-700">Blog not found.</p>';
+          return;
+        }
+        renderBlog(blog);
+      } catch (err) {
+        heroEl.classList.add('hidden');
+        loadedEl.classList.remove('hidden');
+        loadedEl.innerHTML = `<p class="text-sm text-red-700">Failed to load blog: ${escapeHTML(err.message)}</p>`;
+      }
+    }
+
+    boot();
+  </script>
+</body>
+</html>

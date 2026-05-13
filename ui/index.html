@@ -5,270 +5,95 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Video to Blog</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,500;6..72,700&display=swap" rel="stylesheet">
   <style>
-    @keyframes pulse-ring {
-      0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.45); }
-      70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+    :root {
+      --bg: #f8f8f6;
+      --surface: #ffffff;
+      --text: #18181b;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --soft: #f3f4f6;
     }
-    .pulse-ring { animation: pulse-ring 1.2s ease infinite; }
-
-    #blog h1, #blog h2, #blog h3, #blog h4 {
-      margin-top: 1.1rem;
-      margin-bottom: 0.55rem;
-      font-weight: 700;
-      line-height: 1.25;
+    body {
+      background: radial-gradient(1200px 500px at 85% -10%, #f0fdf4 0%, transparent 60%), var(--bg);
+      color: var(--text);
+      font-family: 'Manrope', ui-sans-serif, system-ui, -apple-system, sans-serif;
     }
-    #blog h1 { font-size: 1.28rem; }
-    #blog h2 { font-size: 1.14rem; }
-    #blog h3 { font-size: 1.02rem; }
-    #blog p {
-      margin-top: 0.55rem;
-      margin-bottom: 0.55rem;
-      line-height: 1.65;
-      white-space: pre-wrap;
-    }
-    #blog ul, #blog ol {
-      margin: 0.6rem 0;
-      padding-left: 1.2rem;
-    }
-    #blog li {
-      margin: 0.22rem 0;
-    }
-    #blog pre {
-      margin: 0.7rem 0;
-      padding: 0.7rem;
-      border-radius: 0.5rem;
-      background: #0f172a;
-      color: #e2e8f0;
-      overflow: auto;
-      white-space: pre;
-    }
-    #blog code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size: 0.85em;
-    }
-    #blog blockquote {
-      margin: 0.7rem 0;
-      padding-left: 0.75rem;
-      border-left: 3px solid #cbd5e1;
-      color: #475569;
+    .brand { font-family: 'Newsreader', Georgia, serif; }
+    mark {
+      background: #fde68a;
+      border-radius: 0.2rem;
+      padding: 0 0.12rem;
     }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-900">
-  <main class="mx-auto w-[95%] max-w-7xl py-5">
-    <div class="grid gap-4 lg:grid-cols-[360px,1fr]">
-      <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h1 class="text-xl font-semibold">Video to Blog</h1>
-        <p class="mt-1 text-sm text-slate-500">Local-first pipeline. Leave main model blank to use `MAIN_MODEL`.</p>
+<body>
+  <header class="sticky top-0 z-40 border-b border-[var(--line)] bg-[var(--surface)]/95 backdrop-blur">
+    <div class="mx-auto flex w-[96%] max-w-[1300px] items-center gap-3 py-3">
+      <a href="/" class="brand text-[2rem] leading-none tracking-tight">Video to Blog</a>
 
-        <div class="mt-4 space-y-3">
-          <div>
-            <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500" for="source_type">Source Type</label>
-            <select id="source_type" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none">
-              <option value="url">url</option>
-              <option value="path">path</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500" for="source_value">Source URL / Local Path</label>
-            <input id="source_value" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none" placeholder="https://youtube.com/... or /absolute/video.mp4" />
-          </div>
-
-          <div>
-            <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500" for="main_model">Main Model (optional)</label>
-            <input id="main_model" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none" placeholder="blank = MAIN_MODEL env" />
-          </div>
-
-          <button id="submit" class="w-full rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800">Create Job</button>
+      <div class="relative min-w-0 flex-1">
+        <div class="flex items-center rounded-full border border-[var(--line)] bg-[var(--soft)] px-3 py-2 transition focus-within:border-slate-400">
+          <span class="mr-2 text-sm text-slate-500">⌕</span>
+          <input id="search_input" class="w-full bg-transparent text-sm text-slate-800 placeholder:text-slate-500 focus:outline-none" placeholder="Search technical topics and concepts" />
         </div>
+        <div id="search_dropdown" class="absolute left-0 right-0 top-12 hidden max-h-[360px] overflow-auto rounded-xl border border-[var(--line)] bg-white p-2 shadow-2xl"></div>
+      </div>
 
-        <div class="mt-5 border-t border-slate-200 pt-4">
-          <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-500">Global Search</label>
-          <button id="search_open_btn" class="group flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-500 transition hover:border-slate-400 hover:bg-slate-50">
-            <span class="truncate">Search transcripts and embeddings across jobs...</span>
-            <span class="ml-2 rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 group-hover:border-slate-400">⌘K</span>
-          </button>
+      <a href="/admin" class="rounded-full border border-[var(--line)] px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">Admin</a>
+    </div>
+  </header>
+
+  <main class="mx-auto w-[96%] max-w-[1300px] py-4">
+    <div class="grid gap-4 lg:grid-cols-[240px,1fr]">
+      <aside class="h-fit rounded-2xl border border-[var(--line)] bg-white p-3 lg:sticky lg:top-[78px]">
+        <p class="px-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">Sections</p>
+        <div class="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+          <input id="section_search" class="w-full bg-transparent text-xs text-slate-700 placeholder:text-slate-500 focus:outline-none" placeholder="Filter sections..." />
         </div>
+        <div id="section_list" class="mt-2 space-y-1"></div>
+      </aside>
 
-        <div class="mt-5 border-t border-slate-200 pt-4">
-          <h2 class="text-xs font-medium uppercase tracking-wide text-slate-500">Jobs</h2>
-          <div id="jobs" class="mt-2 max-h-[42vh] space-y-2 overflow-auto"></div>
+      <section class="rounded-2xl border border-[var(--line)] bg-white p-2 sm:p-3">
+        <div class="border-b border-[var(--line)] px-2 pb-3 pt-1">
+          <h1 class="brand text-[1.6rem] leading-tight">Technical Blog Feed</h1>
+          <p id="feed_meta" class="mt-1 text-xs text-slate-500">Loading…</p>
         </div>
-      </section>
-
-      <section class="space-y-4">
-        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div class="flex flex-wrap items-center gap-2">
-            <button id="refresh" class="rounded-lg bg-slate-200 px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-300">Refresh</button>
-            <button id="retry" class="rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700">Retry</button>
-            <p id="job_meta" class="ml-auto text-sm text-slate-600">No job selected</p>
-          </div>
-
-          <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
-            <div id="progress_fill" class="h-full w-0 bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500"></div>
-          </div>
-
-          <div id="stage_list" class="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3"></div>
-        </div>
-
-        <div class="space-y-4">
-          <section class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-            <div id="transcript_source" class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600"></div>
-          </section>
-
-          <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
-            <button id="transcript_toggle" class="flex w-full items-center justify-between px-4 py-3 text-left">
-              <span class="text-sm font-semibold uppercase tracking-wide text-slate-500">Transcript</span>
-              <span id="transcript_chevron" class="text-slate-500 transition-transform">▾</span>
-            </button>
-            <div id="transcript_panel" class="border-t border-slate-100 px-4 py-3">
-              <div id="transcript" class="max-h-[56vh] overflow-auto"></div>
-            </div>
-          </section>
-
-          <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
-            <button id="blog_toggle" class="flex w-full items-center justify-between px-4 py-3 text-left">
-              <span class="text-sm font-semibold uppercase tracking-wide text-slate-500">Markdown</span>
-              <span id="blog_chevron" class="text-slate-500 transition-transform">▾</span>
-            </button>
-            <div id="blog_panel" class="border-t border-slate-100 px-4 py-3">
-              <div class="mb-2 flex items-center justify-end gap-2">
-                <button id="copy_markdown_btn" class="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50" disabled>Copy Markdown</button>
-                <span id="copy_markdown_status" class="text-[11px] text-slate-500"></span>
-              </div>
-              <div class="mb-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <div class="flex flex-wrap items-end gap-2">
-                  <div class="min-w-[160px] flex-1">
-                    <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500" for="translate_language">Translate Language</label>
-                    <input id="translate_language" class="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-emerald-600 focus:outline-none" placeholder="es, fr, de..." />
-                  </div>
-                  <button id="translate_btn" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">Translate</button>
-                </div>
-                <p id="translation_status" class="mt-2 text-xs text-slate-500">Showing original markdown.</p>
-                <p id="translation_eta" class="mt-1 text-xs text-indigo-600"></p>
-                <div id="translation_list" class="mt-2 flex flex-wrap gap-2"></div>
-                <div class="mt-3 border-t border-slate-200 pt-2">
-                  <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Translation History</p>
-                  <div id="translation_history" class="mt-2 space-y-1"></div>
-                </div>
-              </div>
-              <article id="blog" class="prose prose-sm max-w-none"></article>
-            </div>
-          </section>
-        </div>
+        <div id="feed" class="divide-y divide-[var(--line)]"></div>
       </section>
     </div>
   </main>
 
-  <div id="search_modal" class="fixed inset-0 z-50 hidden">
-    <button id="search_backdrop" class="absolute inset-0 bg-slate-900/35 backdrop-blur-[1px]"></button>
-    <div class="relative mx-auto mt-16 w-[94%] max-w-3xl rounded-2xl border border-slate-200 bg-white shadow-2xl">
-      <div class="border-b border-slate-200 p-3">
-        <div class="flex items-center gap-2">
-          <span class="text-sm text-slate-400">⌕</span>
-          <input id="global_search_q" class="min-w-0 flex-1 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none" placeholder="Search docs-style across all transcript chunks..." />
-          <button id="search_close_btn" class="rounded border border-slate-300 px-2 py-1 text-[11px] font-semibold text-slate-500 hover:border-slate-400 hover:text-slate-700">ESC</button>
-        </div>
-      </div>
-      <div id="search_results" class="max-h-[62vh] overflow-auto p-2"></div>
-      <div class="flex items-center justify-between border-t border-slate-200 px-3 py-2 text-[11px] text-slate-500">
-        <span>↑ ↓ move</span>
-        <span>Enter open job</span>
-        <span>Semantic + lexical match</span>
-      </div>
-    </div>
-  </div>
-
   <script>
-    marked.setOptions({
-      gfm: true,
-      breaks: true,
-    });
+    const sectionListEl = document.getElementById('section_list');
+    const sectionSearchEl = document.getElementById('section_search');
+    const feedEl = document.getElementById('feed');
+    const feedMetaEl = document.getElementById('feed_meta');
+    const searchInputEl = document.getElementById('search_input');
+    const searchDropdownEl = document.getElementById('search_dropdown');
 
-    const jobsEl = document.getElementById('jobs');
-    const sourceTypeEl = document.getElementById('source_type');
-    const sourceValueEl = document.getElementById('source_value');
-    const mainModelEl = document.getElementById('main_model');
-    const globalSearchQEl = document.getElementById('global_search_q');
-    const searchOpenBtnEl = document.getElementById('search_open_btn');
-    const searchModalEl = document.getElementById('search_modal');
-    const searchBackdropEl = document.getElementById('search_backdrop');
-    const searchCloseBtnEl = document.getElementById('search_close_btn');
-    const searchResultsEl = document.getElementById('search_results');
-
-    const jobMetaEl = document.getElementById('job_meta');
-    const transcriptSourceEl = document.getElementById('transcript_source');
-    const transcriptEl = document.getElementById('transcript');
-    const blogEl = document.getElementById('blog');
-    const translateLanguageEl = document.getElementById('translate_language');
-    const translateBtnEl = document.getElementById('translate_btn');
-    const translationStatusEl = document.getElementById('translation_status');
-    const translationEtaEl = document.getElementById('translation_eta');
-    const translationListEl = document.getElementById('translation_list');
-    const translationHistoryEl = document.getElementById('translation_history');
-    const copyMarkdownBtnEl = document.getElementById('copy_markdown_btn');
-    const copyMarkdownStatusEl = document.getElementById('copy_markdown_status');
-    const transcriptToggleEl = document.getElementById('transcript_toggle');
-    const blogToggleEl = document.getElementById('blog_toggle');
-    const transcriptPanelEl = document.getElementById('transcript_panel');
-    const blogPanelEl = document.getElementById('blog_panel');
-    const transcriptChevronEl = document.getElementById('transcript_chevron');
-    const blogChevronEl = document.getElementById('blog_chevron');
-    const progressFillEl = document.getElementById('progress_fill');
-    const stageListEl = document.getElementById('stage_list');
-
-    const STAGES = [
-      'download_or_copy_video', 'extract_audio', 'transcribe_audio', 'chunk_transcript',
-      'generate_embeddings', 'analyze_chunks', 'create_outline', 'write_draft',
-      'refine_markdown', 'optional_translate_markdown', 'mark_complete'
-    ];
-
-    const FRIENDLY_STAGE = {
-      download_or_copy_video: 'Download/Copy Video',
-      extract_audio: 'Extract Audio',
-      transcribe_audio: 'Transcribe Audio',
-      chunk_transcript: 'Chunk Transcript',
-      generate_embeddings: 'Generate Embeddings',
-      analyze_chunks: 'Analyze Chunks',
-      create_outline: 'Create Outline',
-      write_draft: 'Write Draft',
-      refine_markdown: 'Refine Markdown',
-      optional_translate_markdown: 'Translate Markdown',
-      mark_complete: 'Complete',
+    const state = {
+      sections: [{ id: 'all', name: 'All', count: 0 }],
+      items: [],
+      selectedSection: 'all',
+      query: '',
+      searchResults: [],
+      searchMap: new Map(),
+      searchTimer: null,
+      searchOpen: false,
+      offset: 0,
+      limit: 20,
+      total: 0,
+      hasMore: true,
+      loading: false,
+      sectionFilter: '',
     };
 
-    let selectedJob = null;
-    let previousStageState = {};
-    let transcriptOpen = true;
-    let blogOpen = true;
-    let selectedBlogLanguage = '';
-    let translationInFlight = false;
-    let pendingTranslationLang = '';
-    let translationAnimTick = 0;
-    let translationAnimTimer = null;
-    let latestJobState = null;
-    let translationSourceMarkdown = '';
-    let currentMarkdownRaw = '';
-    let searchResultsState = [];
-    let searchSelectedIndex = -1;
-    let searchDebounceTimer = null;
-    let copyStatusTimer = null;
-
-    async function api(path, opts = {}) {
-      const res = await fetch(path, {
-        headers: { 'content-type': 'application/json' },
-        ...opts,
-      });
-      if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
-      return res.json();
-    }
-
-    function escapeHTML(str) {
-      return String(str)
+    function escapeHTML(value) {
+      return String(value || '')
         .replaceAll('&', '&amp;')
         .replaceAll('<', '&lt;')
         .replaceAll('>', '&gt;')
@@ -276,774 +101,283 @@
         .replaceAll("'", '&#039;');
     }
 
-    function trimSnippet(text) {
-      const clean = String(text || '').replace(/\s+/g, ' ').trim();
-      return clean.length > 180 ? `${clean.slice(0, 180)}...` : clean;
-    }
-
     function escapeRegExp(value) {
       return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
-    function searchTerms(query) {
-      return String(query || '')
-        .toLowerCase()
-        .split(/\s+/)
-        .map(s => s.trim())
-        .filter(s => s.length >= 2)
-        .slice(0, 8);
+    function dateLabel(value) {
+      const d = new Date(value || 0);
+      if (Number.isNaN(d.getTime())) return '';
+      return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
     }
 
-    function formatSeconds(total) {
-      if (!Number.isFinite(total) || total < 0) return '--:--';
-      const seconds = Math.round(total);
-      const m = Math.floor(seconds / 60);
-      const s = seconds % 60;
+    function timeLabel(total) {
+      const n = Number(total || 0);
+      if (!Number.isFinite(n) || n < 0) return '--:--';
+      const sec = Math.floor(n);
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
       return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     }
 
-    function buildMatchSnippet(content, query) {
-      const raw = String(content || '');
-      if (!raw) return '';
-      const flat = raw.replace(/\s+/g, ' ').trim();
-      if (!flat) return '';
-
-      const lower = flat.toLowerCase();
-      const terms = searchTerms(query);
-      let idx = -1;
-
-      for (const term of terms) {
-        const pos = lower.indexOf(term);
-        if (pos >= 0 && (idx < 0 || pos < idx)) idx = pos;
+    function sourceDomain(source) {
+      if (!source) return 'no source';
+      if (/^https?:\/\//i.test(source)) {
+        try { return new URL(source).hostname.replace(/^www\./, ''); }
+        catch (_) { return source; }
       }
-      if (idx < 0) {
-        const whole = String(query || '').toLowerCase().trim();
-        idx = whole ? lower.indexOf(whole) : -1;
-      }
-      if (idx < 0) {
-        return trimSnippet(flat);
-      }
-
-      const start = Math.max(0, idx - 72);
-      const end = Math.min(flat.length, idx + 144);
-      const prefix = start > 0 ? '…' : '';
-      const suffix = end < flat.length ? '…' : '';
-      return `${prefix}${flat.slice(start, end)}${suffix}`;
+      return 'local path';
     }
 
-    function highlightMatches(text, query) {
-      const base = escapeHTML(String(text || ''));
-      const terms = searchTerms(query);
-      if (!terms.length) return base;
+    function highlight(text, query) {
+      const q = String(query || '').trim();
+      if (!q) return escapeHTML(text);
+      const terms = q.split(/\s+/).filter(x => x.length > 1).slice(0, 8);
+      if (!terms.length) return escapeHTML(text);
       const pattern = terms.map(escapeRegExp).join('|');
-      if (!pattern) return base;
-      const re = new RegExp(`(${pattern})`, 'ig');
-      return base.replace(re, '<mark class="rounded bg-amber-200/80 px-0.5">$1</mark>');
+      if (!pattern) return escapeHTML(text);
+      return escapeHTML(text).replace(new RegExp(`(${pattern})`, 'ig'), '<mark>$1</mark>');
     }
 
-    function setCopyMarkdownState(enabled, statusText = '') {
-      copyMarkdownBtnEl.disabled = !enabled;
-      copyMarkdownStatusEl.textContent = statusText;
+    function sectionButton(section, active) {
+      return `<button data-section="${escapeHTML(section.id)}" class="w-full rounded-lg px-2.5 py-2 text-left text-sm transition ${active ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'}">
+        <span>${escapeHTML(section.name)}</span>
+        <span class="ml-1 text-xs ${active ? 'text-slate-200' : 'text-slate-500'}">(${Number(section.count || 0)})</span>
+      </button>`;
     }
 
-    async function copyPlainText(text) {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-        return;
-      }
-      const tmp = document.createElement('textarea');
-      tmp.value = text;
-      tmp.setAttribute('readonly', 'readonly');
-      tmp.style.position = 'fixed';
-      tmp.style.opacity = '0';
-      document.body.appendChild(tmp);
-      tmp.select();
-      document.execCommand('copy');
-      document.body.removeChild(tmp);
-    }
-
-    function isHTTPURL(value) {
-      return /^https?:\/\//i.test(String(value || '').trim());
-    }
-
-    function renderTranscriptSource(job) {
-      const sourceURL = String(job?.source_url || '').trim();
-      const sourcePath = String(job?.source_path || '').trim();
-      const sourceValue = sourceURL || sourcePath;
-      if (!sourceValue) {
-        transcriptSourceEl.innerHTML = '<span class="text-slate-500">Source Video: unavailable</span>';
-        return;
-      }
-
-      if (isHTTPURL(sourceValue)) {
-        transcriptSourceEl.innerHTML = `
-          <div class="space-y-1">
-            <p class="font-semibold uppercase tracking-wide text-slate-500">Source Video</p>
-            <a href="${escapeHTML(sourceValue)}" target="_blank" rel="noopener noreferrer" class="break-all text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-800">
-              ${escapeHTML(sourceValue)}
-            </a>
-          </div>
-        `;
-        return;
-      }
-
-      transcriptSourceEl.innerHTML = `
-        <div class="space-y-1">
-          <p class="font-semibold uppercase tracking-wide text-slate-500">Source Video (Local Path)</p>
-          <p class="break-all font-mono text-[11px] text-slate-700">${escapeHTML(sourceValue)}</p>
-        </div>
-      `;
-    }
-
-    function estimateTranslationSeconds(markdown) {
-      const text = String(markdown || '');
-      const words = (text.match(/\S+/g) || []).length;
-      const headings = (text.match(/^#{1,6}\s+/gm) || []).length;
-      const codeBlocks = Math.floor((text.match(/```/g) || []).length / 2);
-      const links = (text.match(/\[[^\]]+\]\([^)]+\)/g) || []).length;
-      const estimated = 7 + (words / 22) + (headings * 0.6) + (codeBlocks * 2.8) + (links * 0.25);
-      return Math.max(6, Math.min(240, Math.round(estimated)));
-    }
-
-    function buildSkeletonLineWidths(markdown) {
-      const lines = String(markdown || '')
-        .split(/\r?\n/)
-        .map(line => line.trim())
-        .filter(line => line.length > 0)
-        .slice(0, 20);
-
-      if (!lines.length) {
-        return [90, 84, 68, 94, 78, 62, 92, 74, 86];
-      }
-
-      const cleanedLines = lines.map(line => line
-        .replace(/^#+\s*/, '')
-        .replace(/[`*_~[\]()]/g, '')
-        .trim(),
-      );
-      const maxLen = Math.max(...cleanedLines.map(line => line.length || 1), 1);
-
-      return cleanedLines.map((line, idx) => {
-        const len = line.length || 1;
-        const base = 28 + Math.round((len / maxLen) * 66);
-        const nudged = idx % 6 === 5 ? base - 7 : base;
-        return Math.max(26, Math.min(96, nudged));
+    function renderSections() {
+      const visible = state.sections.filter(s => s.id === 'all' || s.count > 0);
+      const q = state.sectionFilter.trim().toLowerCase();
+      const filtered = visible.filter(s => s.id === 'all' || !q || s.name.toLowerCase().includes(q));
+      sectionListEl.innerHTML = filtered.map(section => sectionButton(section, section.id === state.selectedSection)).join('');
+      sectionListEl.querySelectorAll('[data-section]').forEach(btn => {
+        btn.onclick = async () => {
+          state.selectedSection = btn.getAttribute('data-section') || 'all';
+          renderSections();
+          await resetAndLoadFeed();
+        };
       });
     }
 
-    function renderTranslationSkeleton(markdown, lang) {
-      currentMarkdownRaw = '';
-      setCopyMarkdownState(false, 'Copy available once markdown is ready');
-      const widths = buildSkeletonLineWidths(markdown);
-      const first = widths.slice(0, 3);
-      const rest = widths.slice(3);
-      const heroRows = first.map((w, idx) => {
-        const h = idx === 0 ? 'h-4' : 'h-3';
-        return `<div class="${h} rounded bg-slate-300/80" style="width:${w}%"></div>`;
-      }).join('');
-      const bodyRows = rest.map((w, idx) => {
-        const h = idx % 5 === 0 ? 'h-3.5' : 'h-3';
-        return `<div class="${h} rounded bg-slate-300/80" style="width:${w}%"></div>`;
-      }).join('');
-
-      blogEl.innerHTML = `
-        <div class="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
-          <div class="mb-3 flex items-center justify-between">
-            <div class="text-xs font-semibold uppercase tracking-wide text-indigo-700">Generating ${escapeHTML(lang)} Translation</div>
-            <div class="text-[11px] text-indigo-600">Skeleton follows source width</div>
-          </div>
-          <div class="animate-pulse space-y-4">
-            <div class="rounded-lg border border-indigo-100 bg-white p-4">
-              <div class="flex items-start gap-3">
-                <div class="h-9 w-9 shrink-0 rounded-full bg-slate-300/80"></div>
-                <div class="flex-1 space-y-2.5 py-1">
-                  ${heroRows}
-                </div>
-              </div>
-            </div>
-            <div class="rounded-lg border border-indigo-100 bg-white p-4">
-              <div class="space-y-2.5">
-                ${bodyRows}
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
+    function blogURL(blog) {
+      return `/blog/${encodeURIComponent(blog.id)}?lang=en`;
     }
 
-    function startTranslationLoading(lang, markdown) {
-      stopTranslationLoading();
-      const etaSeconds = estimateTranslationSeconds(markdown);
-      translationAnimTick = 0;
-      translationEtaEl.textContent = `Estimated ~${etaSeconds}s based on markdown size/structure`;
-      renderTranslationSkeleton(markdown, lang);
-      translationAnimTimer = setInterval(() => {
-        translationAnimTick = (translationAnimTick + 1) % 4;
-        const dots = '.'.repeat(translationAnimTick).padEnd(3, ' ');
-        translationStatusEl.textContent = `Translating to ${lang}${dots}`;
-      }, 450);
+    function matchSummary(blog) {
+      const entries = state.searchMap.get(blog.job_id) || [];
+      if (!entries.length) return '';
+      const top = entries[0];
+      return `Match in chunk ${top.chunk_index} (${timeLabel(top.start_time_seconds)}-${timeLabel(top.end_time_seconds)})`;
     }
 
-    function stopTranslationLoading() {
-      if (translationAnimTimer) {
-        clearInterval(translationAnimTimer);
-        translationAnimTimer = null;
-      }
-      translationEtaEl.textContent = '';
+    function visibleBlogs() {
+      return state.items;
     }
 
-    function renderTranslationHistory(translations) {
-      translationHistoryEl.innerHTML = '';
-      if (!translations.length) {
-        translationHistoryEl.innerHTML = '<p class=\"text-xs text-slate-500\">No translations yet.</p>';
+    function renderFeed() {
+      const blogs = visibleBlogs();
+      feedEl.innerHTML = '';
+      if (!blogs.length) {
+        feedMetaEl.textContent = state.loading ? 'Loading…' : 'No blogs for this filter.';
+        feedEl.innerHTML = '<div class="px-3 py-8 text-sm text-slate-500">Try another section or clear search.</div>';
         return;
       }
-      for (const item of translations) {
-        const row = document.createElement('div');
-        row.className = 'rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-600';
-        const ts = item.updated_at ? new Date(item.updated_at).toLocaleString() : '';
+
+      feedMetaEl.textContent = `${blogs.length} of ${state.total} blog${state.total === 1 ? '' : 's'}`;
+
+      for (const blog of blogs) {
+        const source = blog.source_url || blog.source_path || '';
+        const row = document.createElement('a');
+        row.href = blogURL(blog);
+        row.className = 'group block w-full px-2 py-4 text-left transition hover:bg-slate-50';
         row.innerHTML = `
-          <div class=\"flex items-center justify-between gap-2\">
-            <span class=\"font-semibold text-slate-700\">${escapeHTML(item.language || '')}</span>
-            <span class=\"text-[11px] text-slate-500\">${escapeHTML(ts)}</span>
+          <div class="flex items-start justify-between gap-2 text-[11px] text-slate-500">
+            <span class="rounded bg-slate-100 px-2 py-0.5 uppercase tracking-wide">${escapeHTML(blog.section_name || 'Unsectioned')}</span>
+            <span>${escapeHTML(dateLabel(blog.updated_at))}</span>
+          </div>
+          <h3 class="mt-2 text-[1.28rem] font-extrabold leading-snug text-slate-900 transition group-hover:text-slate-700">${escapeHTML(blog.title || 'Untitled')}</h3>
+          <p class="mt-2 text-sm leading-relaxed text-slate-600">${escapeHTML(blog.preview || '')}</p>
+          <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+            <span>${escapeHTML(sourceDomain(source))}</span>
+            <span>•</span>
+            <span>${(blog.languages || []).length} language${(blog.languages || []).length === 1 ? '' : 's'}</span>
           </div>
         `;
-        translationHistoryEl.appendChild(row);
+        feedEl.appendChild(row);
+      }
+
+      if (state.loading) {
+        const loading = document.createElement('div');
+        loading.className = 'px-3 py-4 text-xs text-slate-500';
+        loading.textContent = 'Loading more…';
+        feedEl.appendChild(loading);
       }
     }
 
-    function renderCollapsibles() {
-      transcriptPanelEl.classList.toggle('hidden', !transcriptOpen);
-      transcriptChevronEl.classList.toggle('rotate-180', !transcriptOpen);
-      blogPanelEl.classList.toggle('hidden', !blogOpen);
-      blogChevronEl.classList.toggle('rotate-180', !blogOpen);
+    async function loadFeedPage() {
+      if (state.loading || !state.hasMore) return;
+      state.loading = true;
+      renderFeed();
+      const params = new URLSearchParams();
+      params.set('limit', String(state.limit));
+      params.set('offset', String(state.offset));
+      if (state.selectedSection !== 'all') params.set('section_id', state.selectedSection);
+      const res = await fetch(`/api/public/feed?${params.toString()}`);
+      if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
+      const page = await res.json();
+
+      state.sections = [{ id: 'all', name: 'All', count: Number(page.total || 0) }].concat(
+        (Array.isArray(page.sections) ? page.sections : []).map(s => ({ id: s.id || '', name: s.name || 'Section', count: Number(s.count || 0) }))
+      );
+      state.items = state.items.concat(Array.isArray(page.items) ? page.items : []);
+      state.offset = Number(page.next_offset || state.items.length);
+      state.total = Number(page.total || state.total);
+      state.hasMore = Boolean(page.has_more);
+      state.loading = false;
+      renderSections();
+      renderFeed();
     }
 
-    function stageStateFor(job, stage, stageIndex, currentIndex) {
-      if (job.status === 'complete') return 'done';
-      if (job.status === 'failed' && job.current_stage === stage) return 'failed';
-      if (job.status === 'running' && job.current_stage === stage) return 'running';
-      if (currentIndex >= 0 && stageIndex < currentIndex) return 'done';
-      return 'pending';
+    async function resetAndLoadFeed() {
+      state.items = [];
+      state.offset = 0;
+      state.total = 0;
+      state.hasMore = true;
+      state.loading = false;
+      renderFeed();
+      await loadFeedPage();
     }
 
-    function stageBadgeClasses(state) {
-      if (state === 'running') return 'border-blue-200 bg-blue-50 text-blue-700';
-      if (state === 'done') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
-      if (state === 'failed') return 'border-red-200 bg-red-50 text-red-700';
-      return 'border-slate-200 bg-slate-50 text-slate-500';
+    function searchSnippet(content) {
+      const text = String(content || '').replace(/\s+/g, ' ').trim();
+      if (text.length <= 170) return text;
+      return `${text.slice(0, 170)}...`;
     }
 
-    function dotClasses(state) {
-      if (state === 'running') return 'bg-blue-500 pulse-ring';
-      if (state === 'done') return 'bg-emerald-500';
-      if (state === 'failed') return 'bg-red-500';
-      return 'bg-slate-300';
-    }
-
-    function renderStages(job) {
-      const currentIndex = STAGES.indexOf(job.current_stage || '');
-      let doneCount = 0;
-      const nextState = {};
-      stageListEl.innerHTML = '';
-
-      for (let i = 0; i < STAGES.length; i++) {
-        const stage = STAGES[i];
-        const state = stageStateFor(job, stage, i, currentIndex);
-        if (state === 'done') doneCount++;
-        nextState[stage] = state;
-
-        const justDone = previousStageState[stage] !== 'done' && state === 'done';
-        const item = document.createElement('div');
-        item.className = `rounded-lg border p-2 transition-all duration-300 ${stageBadgeClasses(state)} ${justDone ? 'scale-[1.01]' : ''}`;
-        item.innerHTML = `
-          <div class="flex items-center gap-2">
-            <span class="h-2.5 w-2.5 rounded-full ${dotClasses(state)}"></span>
-            <span class="text-xs font-medium tracking-wide">${escapeHTML(FRIENDLY_STAGE[stage] || stage)}</span>
-            <span class="ml-auto text-[10px] uppercase tracking-wider">${state}</span>
-          </div>
-        `;
-        stageListEl.appendChild(item);
+    function renderSearchDropdown() {
+      searchDropdownEl.innerHTML = '';
+      if (!state.searchOpen || !state.query.trim()) {
+        searchDropdownEl.classList.add('hidden');
+        return;
       }
 
-      previousStageState = nextState;
-      let progress = (doneCount / STAGES.length) * 100;
-      if (job.status === 'running' && currentIndex >= 0) progress = ((doneCount + 0.5) / STAGES.length) * 100;
-      if (job.status === 'complete') progress = 100;
-      progressFillEl.style.width = `${Math.max(0, Math.min(100, progress)).toFixed(1)}%`;
-    }
-
-    function renderTranscriptReady(rawTranscriptText) {
-      transcriptEl.innerHTML = '';
-
-      const wrap = document.createElement('div');
-      wrap.className = 'space-y-2';
-
-      let parsed = null;
-      try { parsed = JSON.parse(rawTranscriptText); } catch (_) {}
-
-      if (parsed && Array.isArray(parsed.segments)) {
-        for (const seg of parsed.segments) {
-          const row = document.createElement('div');
-          row.className = 'rounded-lg border border-slate-200 bg-slate-50 p-2';
-          row.innerHTML = `
-            <div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">${Number(seg.start || 0).toFixed(1)}s - ${Number(seg.end || 0).toFixed(1)}s</div>
-            <p class="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">${escapeHTML(seg.text || '')}</p>
-          `;
-          wrap.appendChild(row);
-        }
-      } else if (Array.isArray(parsed)) {
-        for (const chunk of parsed) {
-          const row = document.createElement('div');
-          row.className = 'rounded-lg border border-slate-200 bg-slate-50 p-2';
-          row.innerHTML = `
-            <div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Chunk ${chunk.chunk_index ?? chunk.index ?? '-'}</div>
-            <p class="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">${escapeHTML(chunk.content || '')}</p>
-          `;
-          wrap.appendChild(row);
-        }
-      } else {
-        const pre = document.createElement('pre');
-        pre.className = 'whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800';
-        pre.textContent = rawTranscriptText;
-        wrap.appendChild(pre);
+      if (!state.searchResults.length) {
+        searchDropdownEl.classList.remove('hidden');
+        searchDropdownEl.innerHTML = '<p class="px-2 py-3 text-sm text-slate-500">No relevant matches found.</p>';
+        return;
       }
 
-      transcriptEl.appendChild(wrap);
-    }
-
-    function renderMarkdownReady(markdown) {
-      currentMarkdownRaw = String(markdown || '');
-      setCopyMarkdownState(currentMarkdownRaw.trim() !== '', '');
-      blogEl.innerHTML = marked.parse(markdown || '');
-    }
-
-    function renderTranslationButtons(translations) {
-      translationListEl.innerHTML = '';
-
-      const originalBtn = document.createElement('button');
-      originalBtn.type = 'button';
-      originalBtn.className = `rounded-full border px-2.5 py-1 text-xs ${selectedBlogLanguage === '' ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'}`;
-      originalBtn.textContent = 'original';
-      originalBtn.onclick = async () => {
-        selectedBlogLanguage = '';
-        renderTranslationButtons(translations);
-        await loadBlogForSelection(selectedJob);
-      };
-      translationListEl.appendChild(originalBtn);
-
-      for (const item of translations) {
-        const lang = item.language || '';
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = `rounded-full border px-2.5 py-1 text-xs ${selectedBlogLanguage === lang ? 'border-indigo-300 bg-indigo-50 text-indigo-700' : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'}`;
-        btn.textContent = lang;
-        btn.onclick = async () => {
-          selectedBlogLanguage = lang;
-          renderTranslationButtons(translations);
-          await loadBlogForSelection(selectedJob);
-        };
-        translationListEl.appendChild(btn);
-      }
-    }
-
-    async function loadTranslationsForJob(jobId) {
-      const data = await api(`/api/jobs/${jobId}/translations`);
-      return data.translations || [];
-    }
-
-    async function maybeRunQueuedTranslation() {
-      if (!pendingTranslationLang || translationInFlight || !selectedJob || !latestJobState) return;
-      if (latestJobState.status !== 'complete') return;
-      const lang = pendingTranslationLang;
-      pendingTranslationLang = '';
-      translateLanguageEl.value = lang;
-      await runTranslation(lang);
-    }
-
-    async function loadBlogForSelection(jobId) {
-      if (translationInFlight) return;
-      const langQuery = selectedBlogLanguage ? `?lang=${encodeURIComponent(selectedBlogLanguage)}` : '';
-      try {
-        const blog = await api(`/api/jobs/${jobId}/blog${langQuery}`);
-        if (blog.ready === false) {
-          currentMarkdownRaw = '';
-          setCopyMarkdownState(false, 'Markdown not ready');
-          if (blog.status === 'failed') {
-            blogEl.innerHTML = `<p class=\"rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600\">${escapeHTML(`Blog unavailable because job failed at stage: ${blog.current_stage || 'unknown'}`)}</p>`;
-          } else {
-            blogEl.innerHTML = `<p class=\"rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600\">${escapeHTML(`Blog not ready yet. Current stage: ${blog.current_stage || 'unknown'}`)}</p>`;
-          }
-        } else {
-          renderMarkdownReady(blog.markdown || '');
-        }
-
-        if (pendingTranslationLang && !translationInFlight) {
-          translationStatusEl.textContent = `Queued translation (${pendingTranslationLang}). It will start when final markdown is ready.`;
-          if (!translationEtaEl.textContent) {
-            translationEtaEl.textContent = 'Waiting for final.md generation to complete';
-          }
-        } else if (selectedBlogLanguage) {
-          if (!translationInFlight) {
-            translationStatusEl.textContent = `Showing translation: ${selectedBlogLanguage}`;
-          }
-        } else {
-          if (!translationInFlight) {
-            translationStatusEl.textContent = 'Showing original markdown.';
-          }
-        }
-      } catch (err) {
-        currentMarkdownRaw = '';
-        setCopyMarkdownState(false, 'Markdown unavailable');
-        blogEl.innerHTML = `<p class=\"rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700\">Blog unavailable: ${escapeHTML(err.message)}</p>`;
-      }
-    }
-
-    async function loadJobs() {
-      const jobs = await api('/api/jobs');
-      jobsEl.innerHTML = '';
-      for (const job of jobs) {
-        const row = document.createElement('div');
-        row.className = 'cursor-pointer rounded-lg border border-slate-200 bg-slate-50 p-2 transition hover:-translate-y-px hover:border-slate-300';
+      searchDropdownEl.classList.remove('hidden');
+      for (const item of state.searchResults) {
+        const linkedBlog = state.items.find(b => b.job_id === item.job_id);
+        if (!linkedBlog) continue;
+        const blogHref = linkedBlog
+          ? `/blog/${encodeURIComponent(linkedBlog.id)}?lang=en&chunk=${encodeURIComponent(item.chunk_index)}&q=${encodeURIComponent(state.query.trim())}`
+          : '#';
+        const row = document.createElement('a');
+        row.href = blogHref;
+        row.className = 'block rounded-lg px-2 py-2 text-sm hover:bg-slate-100';
         row.innerHTML = `
-          <div class="text-sm font-semibold text-slate-900">${escapeHTML(job.title || job.id)}</div>
-          <div class="mt-1 text-xs text-slate-500">${job.status} · ${job.current_stage || '-'} · ${job.main_model}</div>
-        `;
-        row.onclick = () => selectJob(job.id);
-        jobsEl.appendChild(row);
-      }
-    }
-
-    async function selectJob(jobId) {
-      if (selectedJob !== jobId) {
-        previousStageState = {};
-        selectedBlogLanguage = '';
-        pendingTranslationLang = '';
-      }
-      selectedJob = jobId;
-
-      const job = await api(`/api/jobs/${jobId}`);
-      latestJobState = job;
-      jobMetaEl.textContent = `${job.id} · ${job.status} · ${job.current_stage || '-'} · ${job.main_model} @ ${job.main_model_base_url}`;
-      renderTranscriptSource(job);
-      renderStages(job);
-
-      try {
-        const transcript = await api(`/api/jobs/${jobId}/transcript`);
-        if (transcript.ready === false) {
-          transcriptEl.innerHTML = `<p class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">${escapeHTML(transcript.status === 'failed' ? `Transcript unavailable because job failed at stage: ${transcript.current_stage || 'unknown'}` : `Transcript not ready yet. Current stage: ${transcript.current_stage || 'unknown'}`)}</p>`;
-        } else {
-          renderTranscriptReady(transcript.transcript || '');
-        }
-      } catch (err) {
-        transcriptEl.innerHTML = `<p class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">Transcript unavailable: ${escapeHTML(err.message)}</p>`;
-      }
-
-      try {
-        const translations = await loadTranslationsForJob(jobId);
-        renderTranslationButtons(translations);
-        renderTranslationHistory(translations);
-      } catch (err) {
-        translationListEl.innerHTML = `<p class="text-xs text-red-600">${escapeHTML(err.message)}</p>`;
-        translationHistoryEl.innerHTML = '';
-      }
-      await loadBlogForSelection(jobId);
-      await maybeRunQueuedTranslation();
-    }
-
-    async function createJob() {
-      const sourceType = sourceTypeEl.value;
-      const sourceValue = sourceValueEl.value.trim();
-      const mainModel = mainModelEl.value.trim();
-
-      const payload = { source_type: sourceType };
-      if (sourceType === 'url') payload.source_url = sourceValue;
-      if (sourceType === 'path') payload.source_path = sourceValue;
-      if (mainModel !== '') payload.main_model = mainModel;
-
-      const out = await api('/api/jobs', { method: 'POST', body: JSON.stringify(payload) });
-      await loadJobs();
-      await selectJob(out.job_id);
-    }
-
-    async function retrySelected() {
-      if (!selectedJob) return;
-      await api(`/api/jobs/${selectedJob}/retry`, { method: 'POST' });
-      previousStageState = {};
-      await loadJobs();
-      await selectJob(selectedJob);
-    }
-
-    function openSearchModal() {
-      searchModalEl.classList.remove('hidden');
-      setTimeout(() => globalSearchQEl.focus(), 0);
-      if (globalSearchQEl.value.trim()) {
-        runGlobalSearch().catch(err => {
-          searchResultsEl.innerHTML = `<p class="px-2 py-3 text-xs text-red-600">Search failed: ${escapeHTML(err.message)}</p>`;
-        });
-      } else {
-        searchResultsEl.innerHTML = '<p class="px-2 py-3 text-xs text-slate-500">Type to search across all jobs.</p>';
-      }
-    }
-
-    function closeSearchModal() {
-      searchModalEl.classList.add('hidden');
-      searchSelectedIndex = -1;
-    }
-
-    async function runGlobalSearch() {
-      const q = globalSearchQEl.value.trim();
-      if (q === '') {
-        searchResultsState = [];
-        searchSelectedIndex = -1;
-        searchResultsEl.innerHTML = '<p class="px-2 py-3 text-xs text-slate-500">Type to search across all jobs.</p>';
-        return;
-      }
-
-      searchResultsEl.innerHTML = '<p class="px-2 py-3 text-xs text-slate-500">Searching...</p>';
-      const data = await api(`/api/search?q=${encodeURIComponent(q)}&limit=12`);
-      searchResultsState = data.results || [];
-      searchSelectedIndex = searchResultsState.length ? 0 : -1;
-      renderSearchResults(searchResultsState, q);
-    }
-
-    async function activateSearchResult(index) {
-      if (index < 0 || index >= searchResultsState.length) return;
-      const item = searchResultsState[index];
-      await selectJob(item.job_id);
-      closeSearchModal();
-    }
-
-    function renderSearchResults(results, query) {
-      searchResultsEl.innerHTML = '';
-      if (!results.length) {
-        searchResultsEl.innerHTML = '<p class="px-2 py-3 text-xs text-slate-500">No matches found.</p>';
-        return;
-      }
-
-      const terms = searchTerms(query);
-      for (let idx = 0; idx < results.length; idx += 1) {
-        const item = results[idx];
-        const selected = idx === searchSelectedIndex;
-        const snippet = buildMatchSnippet(item.content || '', query);
-        let hits = 0;
-        for (const term of terms) {
-          const re = new RegExp(escapeRegExp(term), 'ig');
-          hits += (String(item.content || '').match(re) || []).length;
-        }
-
-        const row = document.createElement('button');
-        row.type = 'button';
-        row.className = `mb-2 w-full rounded-xl border p-3 text-left transition ${selected ? 'border-indigo-300 bg-indigo-50/70' : 'border-slate-200 bg-slate-50 hover:border-slate-300'}`;
-        row.innerHTML = `
-          <div class="flex items-center justify-between gap-2 text-[11px] text-slate-500">
-            <span class="truncate">${escapeHTML(item.job_title || 'Untitled Job')}</span>
-            <span class="shrink-0 rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">score ${(item.score || 0).toFixed(3)}</span>
+          <div class="flex items-center justify-between gap-2">
+            <p class="font-semibold text-slate-800">${highlight(linkedBlog.title || 'Untitled', state.query)}</p>
+            <span class="text-[10px] uppercase tracking-wide text-slate-500">${escapeHTML(linkedBlog.section_name || 'Unsectioned')}</span>
           </div>
-          <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
-            <span class="rounded bg-white px-1.5 py-0.5">chunk ${escapeHTML(String(item.chunk_index ?? '-'))}</span>
-            <span class="rounded bg-white px-1.5 py-0.5">${escapeHTML(formatSeconds(item.start_time_seconds))} - ${escapeHTML(formatSeconds(item.end_time_seconds))}</span>
-            <span class="rounded bg-white px-1.5 py-0.5">${hits} term match${hits === 1 ? '' : 'es'}</span>
-          </div>
-          <p class="mt-2 text-sm leading-relaxed text-slate-700">${highlightMatches(snippet, query)}</p>
+          <p class="mt-1 text-xs text-slate-600">${highlight(searchSnippet(linkedBlog.preview || ''), state.query)}</p>
+          <p class="mt-1 text-[11px] text-slate-500">Best transcript match at ${timeLabel(item.start_time_seconds)}-${timeLabel(item.end_time_seconds)}</p>
         `;
-        row.onclick = () => activateSearchResult(idx);
-        searchResultsEl.appendChild(row);
+        searchDropdownEl.appendChild(row);
+      }
+      if (!searchDropdownEl.children.length) {
+        searchDropdownEl.innerHTML = '<p class="px-2 py-3 text-sm text-slate-500">No loaded blog matches yet. Scroll feed to load more blogs.</p>';
       }
     }
 
-    document.getElementById('submit').onclick = async () => {
-      try { await createJob(); }
-      catch (err) { alert(`Create job failed: ${err.message}`); }
-    };
-
-    document.getElementById('refresh').onclick = async () => {
-      try {
-        await loadJobs();
-        if (selectedJob) await selectJob(selectedJob);
-      } catch (err) {
-        alert(`Refresh failed: ${err.message}`);
-      }
-    };
-
-    document.getElementById('retry').onclick = async () => {
-      try { await retrySelected(); }
-      catch (err) { alert(`Retry failed: ${err.message}`); }
-    };
-
-    async function runTranslation(langRaw) {
-      if (!selectedJob) {
-        translationStatusEl.textContent = 'Select a job first.';
+    async function runSearch(query) {
+      const q = String(query || '').trim();
+      if (!q) {
+        state.searchResults = [];
+        state.searchMap.clear();
+        renderSearchDropdown();
+        renderFeed();
         return;
       }
-      const lang = langRaw.trim().toLowerCase();
-      if (lang === '') {
-        translationStatusEl.textContent = 'Enter a language code (example: es).';
-        return;
-      }
-
-      let baseMarkdown = '';
-      try {
-        const base = await api(`/api/jobs/${selectedJob}/blog`);
-        if (base.ready === false) {
-          pendingTranslationLang = lang;
-          translationStatusEl.textContent = `Queued translation (${lang}). It will start when final markdown is ready.`;
-          translationEtaEl.textContent = 'Waiting for final.md generation to complete';
-          return;
-        }
-        baseMarkdown = base.markdown || '';
-        translationSourceMarkdown = baseMarkdown;
-      } catch (_) {
-        // Ignore here and let translate endpoint report actionable error.
-      }
-
-      try {
-        translationInFlight = true;
-        translateBtnEl.disabled = true;
-        translateBtnEl.classList.add('opacity-60', 'cursor-not-allowed');
-        startTranslationLoading(lang, baseMarkdown || translationSourceMarkdown);
-
-        await api(`/api/jobs/${selectedJob}/translate`, {
-          method: 'POST',
-          body: JSON.stringify({ language: lang }),
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&limit=20`);
+      if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
+      const payload = await res.json();
+      const raw = Array.isArray(payload.results) ? payload.results : [];
+      const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
+      const mapped = raw
+        .map(item => ({ ...item, blog_id: item.blog_id || '' }))
+        .filter(item => {
+          if (!terms.length) return true;
+          const hay = `${String(item.job_title || '').toLowerCase()} ${String(item.content || '').toLowerCase()}`;
+          return terms.some(t => hay.includes(t));
         });
-
-        const translations = await loadTranslationsForJob(selectedJob);
-        selectedBlogLanguage = lang;
-        renderTranslationButtons(translations);
-        renderTranslationHistory(translations);
-        await loadBlogForSelection(selectedJob);
-        translationStatusEl.textContent = `Translation ready: ${selectedBlogLanguage}`;
-      } catch (err) {
-        const message = String(err.message || '');
-        if (message.includes('final markdown not ready')) {
-          pendingTranslationLang = lang;
-          translationStatusEl.textContent = `Queued translation (${lang}). It will start when final markdown is ready.`;
-          translationEtaEl.textContent = 'Waiting for final.md generation to complete';
-        } else {
-          translationStatusEl.textContent = `Translation failed: ${err.message}`;
-        }
-      } finally {
-        translationInFlight = false;
-        translateBtnEl.disabled = false;
-        translateBtnEl.classList.remove('opacity-60', 'cursor-not-allowed');
-        if (!pendingTranslationLang) {
-          stopTranslationLoading();
+      const bestByJob = new Map();
+      for (const item of mapped) {
+        if (!item.job_id) continue;
+        const prev = bestByJob.get(item.job_id);
+        if (!prev || Number(item.score || 0) > Number(prev.score || 0)) {
+          bestByJob.set(item.job_id, item);
         }
       }
+      state.searchResults = Array.from(bestByJob.values()).sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
+      state.searchMap.clear();
+      for (const item of state.searchResults) {
+        if (!item.job_id) continue;
+        state.searchMap.set(item.job_id, [item]);
+      }
+      renderSearchDropdown();
+      renderFeed();
     }
 
-    translateBtnEl.onclick = async () => {
-      await runTranslation(translateLanguageEl.value);
-    };
+    async function boot() {
+      await resetAndLoadFeed();
 
-    transcriptToggleEl.onclick = () => {
-      transcriptOpen = !transcriptOpen;
-      renderCollapsibles();
-    };
-
-    blogToggleEl.onclick = () => {
-      blogOpen = !blogOpen;
-      renderCollapsibles();
-    };
-
-    searchOpenBtnEl.onclick = () => {
-      openSearchModal();
-    };
-
-    searchBackdropEl.onclick = () => {
-      closeSearchModal();
-    };
-
-    searchCloseBtnEl.onclick = () => {
-      closeSearchModal();
-    };
-
-    globalSearchQEl.addEventListener('keydown', async (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        closeSearchModal();
-        return;
-      }
-      if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        if (searchResultsState.length) {
-          searchSelectedIndex = Math.min(searchResultsState.length - 1, searchSelectedIndex + 1);
-          renderSearchResults(searchResultsState, globalSearchQEl.value);
+      const sentinel = document.createElement('div');
+      sentinel.className = 'h-8';
+      feedEl.parentElement.appendChild(sentinel);
+      const io = new IntersectionObserver(async (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting && state.hasMore && !state.loading) {
+            try { await loadFeedPage(); } catch (_) {}
+          }
         }
-        return;
-      }
-      if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        if (searchResultsState.length) {
-          searchSelectedIndex = Math.max(0, searchSelectedIndex - 1);
-          renderSearchResults(searchResultsState, globalSearchQEl.value);
-        }
-        return;
-      }
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        if (searchSelectedIndex >= 0) {
-          try { await activateSearchResult(searchSelectedIndex); }
-          catch (err) { searchResultsEl.innerHTML = `<p class="px-2 py-3 text-xs text-red-600">Open failed: ${escapeHTML(err.message)}</p>`; }
-          return;
-        }
-        try { await runGlobalSearch(); }
-        catch (err) { searchResultsEl.innerHTML = `<p class="px-2 py-3 text-xs text-red-600">Search failed: ${escapeHTML(err.message)}</p>`; }
-      }
-    });
+      }, { rootMargin: '300px 0px 300px 0px' });
+      io.observe(sentinel);
 
-    globalSearchQEl.addEventListener('input', () => {
-      if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
-      searchDebounceTimer = setTimeout(() => {
-        runGlobalSearch().catch(err => {
-          searchResultsEl.innerHTML = `<p class="px-2 py-3 text-xs text-red-600">Search failed: ${escapeHTML(err.message)}</p>`;
-        });
-      }, 180);
-    });
+      searchInputEl.addEventListener('focus', () => {
+        state.searchOpen = true;
+        renderSearchDropdown();
+      });
+      searchInputEl.addEventListener('blur', () => {
+        setTimeout(() => {
+          state.searchOpen = false;
+          renderSearchDropdown();
+        }, 120);
+      });
+      searchInputEl.addEventListener('input', () => {
+        state.query = searchInputEl.value;
+        if (state.searchTimer) clearTimeout(state.searchTimer);
+        state.searchTimer = setTimeout(async () => {
+          try {
+            await runSearch(state.query);
+          } catch (_) {
+            state.searchResults = [];
+            state.searchMap.clear();
+            renderSearchDropdown();
+            renderFeed();
+          }
+        }, 250);
+      });
+      sectionSearchEl.addEventListener('input', () => {
+        state.sectionFilter = sectionSearchEl.value || '';
+        renderSections();
+      });
+    }
 
-    document.addEventListener('keydown', (event) => {
-      const key = String(event.key || '').toLowerCase();
-      if ((event.metaKey || event.ctrlKey) && key === 'k') {
-        event.preventDefault();
-        if (searchModalEl.classList.contains('hidden')) {
-          openSearchModal();
-        } else {
-          closeSearchModal();
-        }
-      }
-    });
-
-    copyMarkdownBtnEl.onclick = async () => {
-      const text = String(currentMarkdownRaw || '');
-      if (text.trim() === '') {
-        setCopyMarkdownState(false, 'Nothing to copy');
-        return;
-      }
-      try {
-        await copyPlainText(text);
-        setCopyMarkdownState(true, 'Copied');
-      } catch (err) {
-        setCopyMarkdownState(true, `Copy failed: ${err.message}`);
-      }
-      if (copyStatusTimer) clearTimeout(copyStatusTimer);
-      copyStatusTimer = setTimeout(() => {
-        setCopyMarkdownState(true, '');
-      }, 1400);
-    };
-
-    loadJobs().catch(err => {
-      jobsEl.textContent = `Failed to load jobs: ${err.message}`;
-    });
-
-    renderCollapsibles();
-
-    setInterval(async () => {
-      try {
-        await loadJobs();
-        if (selectedJob) await selectJob(selectedJob);
-      } catch (_) {}
-    }, 8000);
+    boot();
   </script>
 </body>
 </html>

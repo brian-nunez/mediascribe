@@ -5,27 +5,455 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/brian-nunez/video-to-blog-page/internal/auth"
 	"github.com/brian-nunez/video-to-blog-page/internal/db"
 	"github.com/brian-nunez/video-to-blog-page/internal/jobs"
+	"github.com/brian-nunez/video-to-blog-page/internal/translation"
 )
 
 type Handler struct {
 	Jobs      *jobs.Service
+	Auth      auth.Service
 	UIRootDir string
 }
 
 func (h Handler) Routes() http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/api/public/catalog", h.handlePublicCatalog)
+	mux.HandleFunc("/api/public/feed", h.handlePublicFeed)
+	mux.HandleFunc("/api/public/blogs/", h.handlePublicBlogByID)
+	mux.HandleFunc("/api/admin/login", h.handleAdminLogin)
+	mux.HandleFunc("/api/admin/logout", h.handleAdminLogout)
+	mux.HandleFunc("/api/admin/me", h.handleAdminMe)
+	mux.HandleFunc("/api/admin/sections", h.handleAdminSections)
+	mux.HandleFunc("/api/admin/sections/", h.handleAdminSectionByID)
+	mux.HandleFunc("/api/admin/catalog", h.handleAdminCatalog)
+	mux.HandleFunc("/api/admin/blogs/", h.handleAdminBlogSubroutes)
+	mux.HandleFunc("/api/admin/embeddings/rebuild", h.handleAdminEmbeddingsRebuild)
+
 	mux.HandleFunc("/api/search", h.handleSearch)
+	mux.HandleFunc("/api/locales", h.handleLocales)
 	mux.HandleFunc("/api/jobs", h.handleJobs)
 	mux.HandleFunc("/api/jobs/", h.handleJobSubroutes)
-
-	uiFS := http.FileServer(http.Dir(h.UIRootDir))
-	mux.Handle("/", uiFS)
+	mux.HandleFunc("/", h.handleUI)
 	return mux
+}
+
+func (h Handler) handleLocales(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"locales": translation.SupportedLocales(),
+	})
+}
+
+func (h Handler) handleUI(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.URL.Path, "/api/") {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
+		return
+	}
+	if r.URL.Path == "/" {
+		http.ServeFile(w, r, filepath.Join(h.UIRootDir, "index.html"))
+		return
+	}
+	if r.URL.Path == "/admin" || r.URL.Path == "/admin/" {
+		http.ServeFile(w, r, filepath.Join(h.UIRootDir, "admin", "dashboard.html"))
+		return
+	}
+	if r.URL.Path == "/admin/login" || r.URL.Path == "/admin/login/" {
+		http.ServeFile(w, r, filepath.Join(h.UIRootDir, "admin", "login.html"))
+		return
+	}
+	if r.URL.Path == "/admin/sections" || r.URL.Path == "/admin/sections/" {
+		http.ServeFile(w, r, filepath.Join(h.UIRootDir, "admin", "sections.html"))
+		return
+	}
+	if r.URL.Path == "/admin/blogs" || r.URL.Path == "/admin/blogs/" {
+		http.ServeFile(w, r, filepath.Join(h.UIRootDir, "admin", "blogs.html"))
+		return
+	}
+	if strings.HasPrefix(r.URL.Path, "/admin/blogs/") {
+		http.ServeFile(w, r, filepath.Join(h.UIRootDir, "admin", "blog-edit.html"))
+		return
+	}
+	if r.URL.Path == "/blog" || r.URL.Path == "/blog/" || strings.HasPrefix(r.URL.Path, "/blog/") {
+		http.ServeFile(w, r, filepath.Join(h.UIRootDir, "blog.html"))
+		return
+	}
+	http.FileServer(http.Dir(h.UIRootDir)).ServeHTTP(w, r)
+}
+
+func (h Handler) handlePublicCatalog(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	catalog, err := h.Jobs.ListPublicCatalog(r.Context())
+	if err != nil {
+		handleErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, catalog)
+}
+
+func (h Handler) handleAdminEmbeddingsRebuild(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requireAdmin(w, r); !ok {
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		writeJSON(w, http.StatusOK, map[string]any{
+			"status": h.Jobs.GetEmbeddingRebuildStatus(),
+		})
+	case http.MethodPost:
+		st, err := h.Jobs.StartRebuildAllEmbeddings()
+		if err != nil {
+			writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusAccepted, map[string]any{"status": st})
+	default:
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+	}
+}
+
+func (h Handler) handlePublicFeed(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	q := r.URL.Query()
+	sectionID := strings.TrimSpace(q.Get("section_id"))
+	limit := 20
+	offset := 0
+	if v := strings.TrimSpace(q.Get("limit")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			limit = n
+		}
+	}
+	if v := strings.TrimSpace(q.Get("offset")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			offset = n
+		}
+	}
+	page, err := h.Jobs.ListPublicFeedPage(r.Context(), sectionID, limit, offset)
+	if err != nil {
+		handleErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, page)
+}
+
+func (h Handler) handlePublicBlogByID(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	blogID := strings.TrimPrefix(r.URL.Path, "/api/public/blogs/")
+	blogID = strings.TrimSpace(blogID)
+	if blogID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing blog id"})
+		return
+	}
+	item, err := h.Jobs.GetPublicBlogByID(r.Context(), blogID)
+	if err != nil {
+		handleErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"blog": item})
+}
+
+func (h Handler) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	var req struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
+		return
+	}
+	token, user, err := h.Auth.Login(r.Context(), req.Username, req.Password)
+	if err != nil {
+		if errors.Is(err, auth.ErrInvalidCredentials) {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid credentials"})
+			return
+		}
+		handleErr(w, err)
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     h.Auth.CookieName,
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+		Expires:  time.Now().Add(h.Auth.SessionTTL),
+	})
+	writeJSON(w, http.StatusOK, map[string]any{"user": user})
+}
+
+func (h Handler) handleAdminLogout(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	cookie, _ := r.Cookie(h.Auth.CookieName)
+	if cookie != nil {
+		_ = h.Auth.Logout(r.Context(), cookie.Value)
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     h.Auth.CookieName,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+		Expires:  time.Unix(0, 0),
+		MaxAge:   -1,
+	})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (h Handler) handleAdminMe(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	user, ok := h.requireAdmin(w, r)
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"user": user})
+}
+
+func (h Handler) handleAdminSections(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requireAdmin(w, r); !ok {
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		items, err := h.Jobs.ListSections(r.Context())
+		if err != nil {
+			handleErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"sections": items})
+	case http.MethodPost:
+		var req struct {
+			Name string `json:"name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
+			return
+		}
+		item, err := h.Jobs.CreateSection(r.Context(), req.Name)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"section": item})
+	default:
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+	}
+}
+
+func (h Handler) handleAdminSectionByID(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requireAdmin(w, r); !ok {
+		return
+	}
+	sectionID := strings.TrimPrefix(r.URL.Path, "/api/admin/sections/")
+	sectionID = strings.TrimSpace(sectionID)
+	if sectionID == "" {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
+		return
+	}
+
+	switch r.Method {
+	case http.MethodPut:
+		var req struct {
+			Name      string `json:"name"`
+			SortOrder int    `json:"sort_order"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
+			return
+		}
+		if err := h.Jobs.UpdateSection(r.Context(), sectionID, req.Name, req.SortOrder); err != nil {
+			handleErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	case http.MethodDelete:
+		if err := h.Jobs.DeleteSection(r.Context(), sectionID); err != nil {
+			handleErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	default:
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+	}
+}
+
+func (h Handler) handleAdminCatalog(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requireAdmin(w, r); !ok {
+		return
+	}
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	catalog, allBlogs, err := h.Jobs.ListAdminCatalog(r.Context())
+	if err != nil {
+		handleErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"sections":    catalog.Sections,
+		"unsectioned": catalog.Unsectioned,
+		"blogs":       allBlogs,
+	})
+}
+
+func (h Handler) handleAdminBlogSubroutes(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requireAdmin(w, r); !ok {
+		return
+	}
+	suffix := strings.TrimPrefix(r.URL.Path, "/api/admin/blogs/")
+	parts := strings.Split(strings.Trim(suffix, "/"), "/")
+	if len(parts) == 0 || parts[0] == "" {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
+		return
+	}
+	blogID := parts[0]
+	if len(parts) == 1 {
+		switch r.Method {
+		case http.MethodGet:
+			blog, err := h.Jobs.GetBlogByCatalogID(r.Context(), blogID, true)
+			if err != nil {
+				handleErr(w, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{"blog": blog})
+		case http.MethodPut:
+			var req struct {
+				Title     string `json:"title"`
+				SectionID string `json:"section_id"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
+				return
+			}
+			if err := h.Jobs.UpdateBlogMetadata(r.Context(), blogID, req.Title, req.SectionID); err != nil {
+				handleErr(w, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+		case http.MethodDelete:
+			if err := h.Jobs.DeleteBlog(r.Context(), blogID); err != nil {
+				handleErr(w, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+		default:
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		}
+		return
+	}
+
+	switch parts[1] {
+	case "restore":
+		if r.Method != http.MethodPost {
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+			return
+		}
+		if err := h.Jobs.RestoreBlog(r.Context(), blogID); err != nil {
+			handleErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	case "section":
+		if r.Method != http.MethodPut {
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+			return
+		}
+		var req struct {
+			SectionID string `json:"section_id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
+			return
+		}
+		if err := h.Jobs.MoveBlogToSection(r.Context(), blogID, req.SectionID); err != nil {
+			handleErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	case "content":
+		if r.Method != http.MethodPut {
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+			return
+		}
+		var req struct {
+			Language string `json:"language"`
+			Markdown string `json:"markdown"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
+			return
+		}
+		if err := h.Jobs.UpdateBlogLanguageContent(r.Context(), blogID, req.Language, req.Markdown); err != nil {
+			handleErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	case "publish":
+		if r.Method != http.MethodPut {
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+			return
+		}
+		var req struct {
+			Published bool `json:"published"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
+			return
+		}
+		if err := h.Jobs.SetBlogPublished(r.Context(), blogID, req.Published); err != nil {
+			handleErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	default:
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
+	}
+}
+
+func (h Handler) requireAdmin(w http.ResponseWriter, r *http.Request) (db.AdminUser, bool) {
+	cookie, err := r.Cookie(h.Auth.CookieName)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return db.AdminUser{}, false
+	}
+	user, err := h.Auth.RequireUser(r.Context(), cookie.Value)
+	if err != nil {
+		if errors.Is(err, auth.ErrUnauthorized) {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+			return db.AdminUser{}, false
+		}
+		handleErr(w, err)
+		return db.AdminUser{}, false
+	}
+	return user, true
 }
 
 func (h Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
@@ -59,6 +487,9 @@ func (h Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
 func (h Handler) handleJobs(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
+		if _, ok := h.requireAdmin(w, r); !ok {
+			return
+		}
 		var req jobs.CreateJobRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
@@ -183,8 +614,12 @@ func (h Handler) handleJobSubroutes(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"job_id":       jobID,
 			"translations": items,
+			"activity":     h.Jobs.GetTranslationActivity(jobID),
 		})
 	case "translate":
+		if _, ok := h.requireAdmin(w, r); !ok {
+			return
+		}
 		if r.Method != http.MethodPost {
 			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 			return
@@ -196,20 +631,19 @@ func (h Handler) handleJobSubroutes(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
 			return
 		}
-		out, err := h.Jobs.TranslateCompletedBlog(r.Context(), jobID, req.Language)
+		out, err := h.Jobs.StartTranslateCompletedBlog(jobID, req.Language)
 		if err != nil {
-			if errors.Is(err, jobs.ErrNotReady) {
-				writeJSON(w, http.StatusConflict, map[string]string{"error": "final markdown not ready yet"})
-				return
-			}
 			handleErr(w, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{
+		writeJSON(w, http.StatusAccepted, map[string]any{
 			"job_id":      jobID,
 			"translation": out,
 		})
 	case "retry":
+		if _, ok := h.requireAdmin(w, r); !ok {
+			return
+		}
 		if r.Method != http.MethodPost {
 			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 			return

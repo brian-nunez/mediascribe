@@ -47,6 +47,19 @@ type ChunkEmbedding struct {
 	CreatedAt             time.Time `json:"created_at"`
 }
 
+type BlogOutputEmbedding struct {
+	ID                    string    `json:"id"`
+	JobID                 string    `json:"job_id"`
+	Language              string    `json:"language"`
+	ContentSHA256         string    `json:"content_sha256"`
+	Embedding             []byte    `json:"embedding"`
+	EmbeddingDimensions   int       `json:"embedding_dimensions"`
+	EmbeddingModel        string    `json:"embedding_model"`
+	EmbeddingModelBaseURL string    `json:"embedding_model_base_url"`
+	CreatedAt             time.Time `json:"created_at"`
+	UpdatedAt             time.Time `json:"updated_at"`
+}
+
 type ChunkAnalysis struct {
 	ID           string    `json:"id"`
 	JobID        string    `json:"job_id"`
@@ -81,4 +94,63 @@ type SearchChunkRecord struct {
 	Content          string  `json:"content"`
 	Embedding        []byte  `json:"embedding"`
 	EmbeddingDims    int     `json:"embedding_dimensions"`
+}
+
+type Section struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	SortOrder int       `json:"sort_order"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type BlogCatalog struct {
+	ID        string    `json:"id"`
+	JobID     string    `json:"job_id"`
+	SectionID string    `json:"section_id,omitempty"`
+	Title     string    `json:"title"`
+	Published bool      `json:"published"`
+	Deleted   bool      `json:"deleted"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type BlogContentOverride struct {
+	ID        string    `json:"id"`
+	BlogID    string    `json:"blog_id"`
+	Language  string    `json:"language"`
+	Markdown  string    `json:"markdown"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type PublicBlogRow struct {
+	BlogID      string
+	JobID       string
+	Title       string
+	SectionID   string
+	SectionName string
+	SourceURL   string
+	SourcePath  string
+	Status      string
+	ArtifactDir string
+	BlogUpdated time.Time
+	BlogCreated time.Time
+	JobUpdated  time.Time
+	JobCreated  time.Time
+}
+
+type AdminUser struct {
+	ID           string    `json:"id"`
+	Username     string    `json:"username"`
+	PasswordHash string    `json:"-"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+type AdminSession struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"user_id"`
+	TokenHash string    `json:"-"`
+	ExpiresAt time.Time `json:"expires_at"`
+	CreatedAt time.Time `json:"created_at"`
+	RevokedAt string    `json:"revoked_at,omitempty"`
 }

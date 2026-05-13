@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Video to Blog Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-900">
+  <main class="mx-auto w-[95%] max-w-7xl py-6">
+    <header class="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <h1 class="text-2xl font-semibold">Admin</h1>
+          <p class="mt-1 text-sm text-slate-500">Manage sections, blog metadata, publishing, and language content.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <a href="/" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Public</a>
+          <button id="logout_btn" class="hidden rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <section id="login_panel" class="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h2 class="text-lg font-semibold">Admin Login</h2>
+      <p class="mt-1 text-sm text-slate-500">No registration. Bootstrap users via CLI only.</p>
+      <div class="mt-4 space-y-3">
+        <div>
+          <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500" for="login_username">Username</label>
+          <input id="login_username" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none" />
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500" for="login_password">Password</label>
+          <input id="login_password" type="password" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none" />
+        </div>
+        <button id="login_btn" class="w-full rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800">Login</button>
+        <p id="login_status" class="text-sm text-slate-500"></p>
+      </div>
+    </section>
+
+    <section id="admin_panel" class="hidden space-y-4">
+      <div class="grid gap-4 lg:grid-cols-[330px,1fr]">
+        <aside class="space-y-4">
+          <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Sections</h3>
+            <div class="mt-3 flex gap-2">
+              <input id="new_section_name" class="min-w-0 flex-1 rounded-lg border border-slate-300 px-2 py-1.5 text-sm" placeholder="New section name" />
+              <button id="create_section_btn" class="rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900">Create</button>
+            </div>
+            <div id="section_list" class="mt-3 space-y-2"></div>
+          </section>
+
+          <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Create Job</h3>
+            <div class="mt-3 grid gap-2 sm:grid-cols-1">
+              <select id="job_source_type" class="rounded border border-slate-300 bg-white px-2 py-1.5 text-sm">
+                <option value="url">url</option>
+                <option value="path">path</option>
+              </select>
+              <input id="job_source_value" class="rounded border border-slate-300 bg-white px-2 py-1.5 text-sm" placeholder="https://youtube.com/... or /absolute/video.mp4" />
+              <input id="job_main_model" class="rounded border border-slate-300 bg-white px-2 py-1.5 text-sm" placeholder="main model override (optional)" />
+            </div>
+            <div class="mt-3 flex items-center gap-2">
+              <button id="create_job_btn" class="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800">Create Job</button>
+              <p id="create_job_status" class="text-sm text-slate-500"></p>
+            </div>
+            <div id="job_list" class="mt-3 space-y-1"></div>
+          </section>
+        </aside>
+
+        <section class="space-y-4">
+          <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div class="mb-3 flex items-center justify-between gap-2">
+              <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Blogs</h3>
+              <button id="refresh_btn" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Refresh</button>
+            </div>
+            <div id="blog_groups" class="space-y-4"></div>
+          </section>
+
+          <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Editor</h3>
+            <p id="editor_meta" class="mt-1 text-sm text-slate-500">Select a blog to edit.</p>
+
+            <div class="mt-3 grid gap-2 sm:grid-cols-2">
+              <input id="editor_title" class="rounded border border-slate-300 px-2 py-1.5 text-sm" placeholder="Blog title" disabled />
+              <select id="editor_section" class="rounded border border-slate-300 px-2 py-1.5 text-sm" disabled></select>
+            </div>
+
+            <div class="mt-2 flex flex-wrap items-center gap-2">
+              <button id="save_meta_btn" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50" disabled>Save Metadata</button>
+              <button id="toggle_publish_btn" class="rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50" disabled>Publish</button>
+              <button id="toggle_delete_btn" class="rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50" disabled>Delete</button>
+            </div>
+
+            <div class="mt-3 flex flex-wrap gap-2" id="language_buttons"></div>
+            <textarea id="markdown_editor" class="mt-3 h-64 w-full rounded-lg border border-slate-300 p-3 font-mono text-xs leading-relaxed" placeholder="Select a blog language to edit" disabled></textarea>
+            <div class="mt-3 flex items-center gap-2">
+              <button id="save_content_btn" class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50" disabled>Save Content Override</button>
+              <button id="clear_override_btn" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50" disabled>Clear Override</button>
+              <p id="editor_status" class="text-sm text-slate-500"></p>
+            </div>
+          </section>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const loginPanelEl = document.getElementById('login_panel');
+    const adminPanelEl = document.getElementById('admin_panel');
+    const logoutBtnEl = document.getElementById('logout_btn');
+
+    const loginUsernameEl = document.getElementById('login_username');
+    const loginPasswordEl = document.getElementById('login_password');
+    const loginBtnEl = document.getElementById('login_btn');
+    const loginStatusEl = document.getElementById('login_status');
+
+    const newSectionNameEl = document.getElementById('new_section_name');
+    const createSectionBtnEl = document.getElementById('create_section_btn');
+    const sectionListEl = document.getElementById('section_list');
+
+    const jobSourceTypeEl = document.getElementById('job_source_type');
+    const jobSourceValueEl = document.getElementById('job_source_value');
+    const jobMainModelEl = document.getElementById('job_main_model');
+    const createJobBtnEl = document.getElementById('create_job_btn');
+    const createJobStatusEl = document.getElementById('create_job_status');
+    const jobListEl = document.getElementById('job_list');
+
+    const refreshBtnEl = document.getElementById('refresh_btn');
+    const blogGroupsEl = document.getElementById('blog_groups');
+
+    const editorMetaEl = document.getElementById('editor_meta');
+    const editorTitleEl = document.getElementById('editor_title');
+    const editorSectionEl = document.getElementById('editor_section');
+    const saveMetaBtnEl = document.getElementById('save_meta_btn');
+    const togglePublishBtnEl = document.getElementById('toggle_publish_btn');
+    const toggleDeleteBtnEl = document.getElementById('toggle_delete_btn');
+    const languageButtonsEl = document.getElementById('language_buttons');
+    const markdownEditorEl = document.getElementById('markdown_editor');
+    const saveContentBtnEl = document.getElementById('save_content_btn');
+    const clearOverrideBtnEl = document.getElementById('clear_override_btn');
+    const editorStatusEl = document.getElementById('editor_status');
+
+    let state = {
+      me: null,
+      sections: [],
+      blogs: [],
+      jobs: [],
+      selectedBlogID: '',
+      selectedLanguage: 'en',
+    };
+
+    function escapeHTML(value) {
+      return String(value || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch(path, {
+        headers: { 'content-type': 'application/json' },
+        ...opts,
+      });
+      if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
+      return res.json();
+    }
+
+    function findBlog(blogID) {
+      return state.blogs.find(x => x.id === blogID) || null;
+    }
+
+    function sourceLinkHTML(blog) {
+      const source = String(blog.source_url || blog.source_path || '').trim();
+      if (!source) return '<span class="text-slate-500">No source</span>';
+      if (/^https?:\/\//i.test(source)) {
+        return `<a href="${escapeHTML(source)}" target="_blank" rel="noopener noreferrer" class="text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-800 break-all">${escapeHTML(source)}</a>`;
+      }
+      return `<span class="font-mono text-[11px] text-slate-700 break-all">${escapeHTML(source)}</span>`;
+    }
+
+    function sectionOptions(selected) {
+      let html = '<option value="">Unsectioned</option>';
+      for (const section of state.sections) {
+        const isSelected = section.id === selected;
+        html += `<option value="${escapeHTML(section.id)}" ${isSelected ? 'selected' : ''}>${escapeHTML(section.name)}</option>`;
+      }
+      return html;
+    }
+
+    function renderSections() {
+      sectionListEl.innerHTML = '';
+      if (!state.sections.length) {
+        sectionListEl.innerHTML = '<p class="rounded-lg border border-dashed border-slate-300 p-3 text-sm text-slate-500">No sections yet.</p>';
+        return;
+      }
+
+      for (const section of state.sections) {
+        const row = document.createElement('div');
+        row.className = 'rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2';
+        row.innerHTML = `
+          <div class="flex items-center gap-2">
+            <div>
+              <p class="text-sm font-semibold text-slate-800">${escapeHTML(section.name)}</p>
+              <p class="text-[11px] text-slate-500">Order ${escapeHTML(String(section.sort_order ?? 0))}</p>
+            </div>
+            <div class="ml-auto flex items-center gap-1.5">
+              <button data-rename class="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100">Rename</button>
+              <button data-order class="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100">Order</button>
+              <button data-delete class="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100">Delete</button>
+            </div>
+          </div>
+        `;
+
+        row.querySelector('[data-rename]').onclick = async () => {
+          const name = prompt('New section name:', section.name || '');
+          if (name === null) return;
+          await api(`/api/admin/sections/${section.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ name, sort_order: Number(section.sort_order || 0) }),
+          });
+          await loadAdminCatalog();
+        };
+
+        row.querySelector('[data-order]').onclick = async () => {
+          const val = prompt('New sort order:', String(section.sort_order ?? 0));
+          if (val === null) return;
+          const sortOrder = Number(val || '0');
+          await api(`/api/admin/sections/${section.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ name: section.name, sort_order: sortOrder }),
+          });
+          await loadAdminCatalog();
+        };
+
+        row.querySelector('[data-delete]').onclick = async () => {
+          if (!confirm(`Delete section "${section.name}"?`)) return;
+          await api(`/api/admin/sections/${section.id}`, { method: 'DELETE' });
+          await loadAdminCatalog();
+        };
+
+        sectionListEl.appendChild(row);
+      }
+    }
+
+    function groupedBlogs() {
+      const by = new Map();
+      for (const section of state.sections) by.set(section.id, []);
+      by.set('', []);
+      for (const blog of state.blogs) {
+        const key = String(blog.section_id || '');
+        if (!by.has(key)) by.set(key, []);
+        by.get(key).push(blog);
+      }
+      for (const arr of by.values()) {
+        arr.sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')));
+      }
+      return by;
+    }
+
+    function renderBlogs() {
+      blogGroupsEl.innerHTML = '';
+      if (!state.blogs.length) {
+        blogGroupsEl.innerHTML = '<p class="rounded-lg border border-dashed border-slate-300 p-3 text-sm text-slate-500">No blogs found yet.</p>';
+        return;
+      }
+
+      const groups = groupedBlogs();
+      const sectionOrder = [...state.sections.map(s => ({ id: s.id, name: s.name })), { id: '', name: 'Unsectioned' }];
+
+      for (const section of sectionOrder) {
+        const blogs = groups.get(section.id) || [];
+        const block = document.createElement('section');
+        block.className = 'rounded-xl border border-slate-200 bg-slate-50 p-3';
+        block.innerHTML = `
+          <h4 class="text-xs font-bold uppercase tracking-wide text-slate-500">${escapeHTML(section.name)}</h4>
+          <div class="mt-2 space-y-2" data-items></div>
+        `;
+
+        const itemsEl = block.querySelector('[data-items]');
+        if (!blogs.length) {
+          itemsEl.innerHTML = '<p class="rounded border border-dashed border-slate-300 bg-white p-2 text-xs text-slate-500">No blogs in this section.</p>';
+          blogGroupsEl.appendChild(block);
+          continue;
+        }
+
+        for (const blog of blogs) {
+          const row = document.createElement('article');
+          row.className = `rounded-lg border bg-white p-2.5 ${blog.deleted ? 'border-red-200' : 'border-slate-200'}`;
+          row.innerHTML = `
+            <div class="flex flex-wrap items-center gap-2">
+              <p class="text-sm font-semibold text-slate-800">${escapeHTML(blog.title || 'Untitled')}</p>
+              <span class="rounded border px-1.5 py-0.5 text-[10px] ${blog.published ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-amber-300 bg-amber-50 text-amber-700'}">${blog.published ? 'published' : 'draft'}</span>
+              ${blog.deleted ? '<span class="rounded border border-red-300 bg-red-50 px-1.5 py-0.5 text-[10px] text-red-700">deleted</span>' : ''}
+              <span class="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 text-[10px] text-slate-600">${escapeHTML(blog.status || '-')}</span>
+              <div class="ml-auto flex items-center gap-1.5">
+                <button data-edit class="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100">Edit</button>
+                <button data-publish class="rounded border border-indigo-300 bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100">${blog.published ? 'Unpublish' : 'Publish'}</button>
+                <button data-delete class="rounded border ${blog.deleted ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'border-red-300 bg-red-50 text-red-700 hover:bg-red-100'} px-2 py-1 text-xs font-medium">${blog.deleted ? 'Restore' : 'Delete'}</button>
+              </div>
+            </div>
+            <div class="mt-1 text-xs text-slate-500">Job ${(blog.job_id || '').slice(0, 8)}</div>
+            <div class="mt-1 text-xs">${sourceLinkHTML(blog)}</div>
+          `;
+
+          row.querySelector('[data-edit]').onclick = () => {
+            state.selectedBlogID = blog.id;
+            state.selectedLanguage = (blog.languages?.find(x => x.language === 'en') || blog.languages?.[0] || { language: 'en' }).language;
+            renderEditor();
+          };
+
+          row.querySelector('[data-publish]').onclick = async () => {
+            await api(`/api/admin/blogs/${blog.id}/publish`, {
+              method: 'PUT',
+              body: JSON.stringify({ published: !blog.published }),
+            });
+            await loadAdminCatalog();
+          };
+
+          row.querySelector('[data-delete]').onclick = async () => {
+            if (blog.deleted) {
+              await api(`/api/admin/blogs/${blog.id}/restore`, { method: 'POST' });
+            } else {
+              if (!confirm(`Delete blog "${blog.title}"?`)) return;
+              await api(`/api/admin/blogs/${blog.id}`, { method: 'DELETE' });
+            }
+            await loadAdminCatalog();
+          };
+
+          itemsEl.appendChild(row);
+        }
+
+        blogGroupsEl.appendChild(block);
+      }
+    }
+
+    function renderJobs() {
+      jobListEl.innerHTML = '';
+      if (!state.jobs.length) {
+        jobListEl.innerHTML = '<p class="rounded border border-dashed border-slate-300 p-2 text-xs text-slate-500">No jobs yet.</p>';
+        return;
+      }
+      for (const job of state.jobs.slice(0, 12)) {
+        const row = document.createElement('div');
+        row.className = 'rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-600';
+        row.textContent = `${job.id.slice(0, 8)} · ${job.status} · ${job.current_stage || '-'}`;
+        jobListEl.appendChild(row);
+      }
+    }
+
+    function setEditorEnabled(enabled) {
+      editorTitleEl.disabled = !enabled;
+      editorSectionEl.disabled = !enabled;
+      saveMetaBtnEl.disabled = !enabled;
+      togglePublishBtnEl.disabled = !enabled;
+      toggleDeleteBtnEl.disabled = !enabled;
+      markdownEditorEl.disabled = !enabled;
+      saveContentBtnEl.disabled = !enabled;
+      clearOverrideBtnEl.disabled = !enabled;
+    }
+
+    function renderEditor() {
+      const blog = findBlog(state.selectedBlogID);
+      languageButtonsEl.innerHTML = '';
+      editorStatusEl.textContent = '';
+
+      editorSectionEl.innerHTML = sectionOptions('');
+      if (!blog) {
+        editorMetaEl.textContent = 'Select a blog to edit.';
+        editorTitleEl.value = '';
+        markdownEditorEl.value = '';
+        togglePublishBtnEl.textContent = 'Publish';
+        toggleDeleteBtnEl.textContent = 'Delete';
+        setEditorEnabled(false);
+        return;
+      }
+
+      setEditorEnabled(true);
+      editorMetaEl.textContent = `${blog.title} · ${blog.job_id.slice(0, 8)} · ${blog.status}`;
+      editorTitleEl.value = blog.title || '';
+      editorSectionEl.innerHTML = sectionOptions(blog.section_id || '');
+      togglePublishBtnEl.textContent = blog.published ? 'Unpublish' : 'Publish';
+      toggleDeleteBtnEl.textContent = blog.deleted ? 'Restore' : 'Delete';
+
+      const languages = Array.isArray(blog.languages) ? blog.languages : [];
+      if (!languages.length) {
+        markdownEditorEl.value = '';
+        markdownEditorEl.disabled = true;
+        saveContentBtnEl.disabled = true;
+        clearOverrideBtnEl.disabled = true;
+        return;
+      }
+
+      if (!languages.find(x => x.language === state.selectedLanguage)) {
+        state.selectedLanguage = languages[0].language;
+      }
+
+      for (const lang of languages) {
+        const btn = document.createElement('button');
+        const active = state.selectedLanguage === lang.language;
+        btn.className = `rounded-full border px-2.5 py-1 text-xs ${active ? 'border-indigo-300 bg-indigo-50 text-indigo-700' : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'}`;
+        btn.textContent = lang.language;
+        btn.onclick = () => {
+          state.selectedLanguage = lang.language;
+          renderEditor();
+        };
+        languageButtonsEl.appendChild(btn);
+      }
+
+      const selected = languages.find(x => x.language === state.selectedLanguage) || languages[0];
+      markdownEditorEl.value = selected.markdown || '';
+      markdownEditorEl.disabled = false;
+      saveContentBtnEl.disabled = false;
+      clearOverrideBtnEl.disabled = false;
+    }
+
+    async function loadAdminCatalog() {
+      const data = await api('/api/admin/catalog');
+
+      const flatSections = [];
+      const byID = new Map();
+      const sections = Array.isArray(data.sections) ? data.sections : [];
+      for (const section of sections) {
+        flatSections.push({ id: section.id, name: section.name, sort_order: section.sort_order });
+      }
+      state.sections = flatSections.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+      const blogs = Array.isArray(data.blogs) ? data.blogs : [];
+      state.blogs = blogs;
+
+      renderSections();
+      renderBlogs();
+      renderEditor();
+    }
+
+    async function loadJobs() {
+      const jobs = await api('/api/jobs');
+      state.jobs = Array.isArray(jobs) ? jobs : [];
+      renderJobs();
+    }
+
+    async function login() {
+      loginStatusEl.textContent = 'Logging in...';
+      try {
+        const out = await api('/api/admin/login', {
+          method: 'POST',
+          body: JSON.stringify({
+            username: loginUsernameEl.value,
+            password: loginPasswordEl.value,
+          }),
+        });
+        state.me = out.user;
+        loginPanelEl.classList.add('hidden');
+        adminPanelEl.classList.remove('hidden');
+        logoutBtnEl.classList.remove('hidden');
+        loginStatusEl.textContent = '';
+        await loadAdminCatalog();
+        await loadJobs();
+      } catch (err) {
+        loginStatusEl.textContent = `Login failed: ${err.message}`;
+      }
+    }
+
+    async function logout() {
+      await api('/api/admin/logout', { method: 'POST' });
+      state.me = null;
+      loginPanelEl.classList.remove('hidden');
+      adminPanelEl.classList.add('hidden');
+      logoutBtnEl.classList.add('hidden');
+    }
+
+    loginBtnEl.onclick = login;
+    loginPasswordEl.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') login();
+    });
+
+    logoutBtnEl.onclick = async () => {
+      try { await logout(); } catch (_) {}
+    };
+
+    createSectionBtnEl.onclick = async () => {
+      const name = newSectionNameEl.value.trim();
+      if (!name) return;
+      await api('/api/admin/sections', {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+      });
+      newSectionNameEl.value = '';
+      await loadAdminCatalog();
+    };
+
+    createJobBtnEl.onclick = async () => {
+      const sourceType = jobSourceTypeEl.value;
+      const sourceValue = jobSourceValueEl.value.trim();
+      const mainModel = jobMainModelEl.value.trim();
+      if (!sourceValue) {
+        createJobStatusEl.textContent = 'Source is required.';
+        return;
+      }
+      const payload = { source_type: sourceType };
+      if (sourceType === 'url') payload.source_url = sourceValue;
+      if (sourceType === 'path') payload.source_path = sourceValue;
+      if (mainModel) payload.main_model = mainModel;
+
+      createJobStatusEl.textContent = 'Creating job...';
+      try {
+        const out = await api('/api/jobs', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        createJobStatusEl.textContent = `Created ${out.job_id.slice(0, 8)}`;
+        jobSourceValueEl.value = '';
+        await loadJobs();
+        await loadAdminCatalog();
+      } catch (err) {
+        createJobStatusEl.textContent = `Create failed: ${err.message}`;
+      }
+    };
+
+    refreshBtnEl.onclick = async () => {
+      await loadAdminCatalog();
+      await loadJobs();
+    };
+
+    saveMetaBtnEl.onclick = async () => {
+      const blog = findBlog(state.selectedBlogID);
+      if (!blog) return;
+      editorStatusEl.textContent = 'Saving metadata...';
+      try {
+        await api(`/api/admin/blogs/${blog.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            title: editorTitleEl.value,
+            section_id: editorSectionEl.value,
+          }),
+        });
+        editorStatusEl.textContent = 'Metadata saved';
+        await loadAdminCatalog();
+      } catch (err) {
+        editorStatusEl.textContent = `Save failed: ${err.message}`;
+      }
+    };
+
+    togglePublishBtnEl.onclick = async () => {
+      const blog = findBlog(state.selectedBlogID);
+      if (!blog) return;
+      editorStatusEl.textContent = blog.published ? 'Unpublishing...' : 'Publishing...';
+      try {
+        await api(`/api/admin/blogs/${blog.id}/publish`, {
+          method: 'PUT',
+          body: JSON.stringify({ published: !blog.published }),
+        });
+        editorStatusEl.textContent = blog.published ? 'Unpublished' : 'Published';
+        await loadAdminCatalog();
+      } catch (err) {
+        editorStatusEl.textContent = `Publish failed: ${err.message}`;
+      }
+    };
+
+    toggleDeleteBtnEl.onclick = async () => {
+      const blog = findBlog(state.selectedBlogID);
+      if (!blog) return;
+      if (!blog.deleted && !confirm(`Delete blog "${blog.title}"?`)) return;
+      editorStatusEl.textContent = blog.deleted ? 'Restoring...' : 'Deleting...';
+      try {
+        if (blog.deleted) {
+          await api(`/api/admin/blogs/${blog.id}/restore`, { method: 'POST' });
+          editorStatusEl.textContent = 'Restored';
+        } else {
+          await api(`/api/admin/blogs/${blog.id}`, { method: 'DELETE' });
+          editorStatusEl.textContent = 'Deleted';
+        }
+        await loadAdminCatalog();
+      } catch (err) {
+        editorStatusEl.textContent = `Delete/restore failed: ${err.message}`;
+      }
+    };
+
+    saveContentBtnEl.onclick = async () => {
+      const blog = findBlog(state.selectedBlogID);
+      if (!blog) return;
+      editorStatusEl.textContent = 'Saving content...';
+      try {
+        await api(`/api/admin/blogs/${blog.id}/content`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            language: state.selectedLanguage,
+            markdown: markdownEditorEl.value,
+          }),
+        });
+        editorStatusEl.textContent = 'Content saved';
+        await loadAdminCatalog();
+      } catch (err) {
+        editorStatusEl.textContent = `Save failed: ${err.message}`;
+      }
+    };
+
+    clearOverrideBtnEl.onclick = async () => {
+      const blog = findBlog(state.selectedBlogID);
+      if (!blog) return;
+      editorStatusEl.textContent = 'Clearing override...';
+      try {
+        await api(`/api/admin/blogs/${blog.id}/content`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            language: state.selectedLanguage,
+            markdown: '',
+          }),
+        });
+        editorStatusEl.textContent = 'Override cleared';
+        await loadAdminCatalog();
+      } catch (err) {
+        editorStatusEl.textContent = `Clear failed: ${err.message}`;
+      }
+    };
+
+    async function boot() {
+      try {
+        const out = await api('/api/admin/me');
+        state.me = out.user;
+        loginPanelEl.classList.add('hidden');
+        adminPanelEl.classList.remove('hidden');
+        logoutBtnEl.classList.remove('hidden');
+        await loadAdminCatalog();
+        await loadJobs();
+      } catch (_) {
+        loginPanelEl.classList.remove('hidden');
+        adminPanelEl.classList.add('hidden');
+        logoutBtnEl.classList.add('hidden');
+      }
+    }
+
+    boot();
+  </script>
+</body>
+</html>

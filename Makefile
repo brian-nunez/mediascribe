@@ -8,7 +8,8 @@ APP_ENV_VARS := HTTP_ADDR SQLITE_PATH ARTIFACT_ROOT \
 	TRANSLATE_MODEL TRANSLATE_MODEL_BASE_URL TRANSLATE_MODEL_TIMEOUT TRANSLATE_MODEL_MAX_RETRIES \
 	MODEL_RETRY_BACKOFF \
 	FFMPEG_BIN WHISPER_CPP_BIN WHISPER_MODEL_PATH YTDLP_BIN \
-	TRANSCRIPT_FALLBACK_PATH ENABLE_TRANSLATION
+	TRANSCRIPT_FALLBACK_PATH ENABLE_TRANSLATION \
+	ADMIN_SESSION_TTL ADMIN_COOKIE_NAME
 
 UNSET_FLAGS := $(foreach v,$(APP_ENV_VARS),-u $(v))
 
@@ -48,8 +49,10 @@ export TRANSCRIPT_FALLBACK_PATH ?=
 
 # Default translation toggle for new jobs
 export ENABLE_TRANSLATION ?= false
+export ADMIN_SESSION_TTL ?= 72h
+export ADMIN_COOKIE_NAME ?= vtb_admin_session
 
-.PHONY: run run-fresh build tidy clean env env-fresh unset-env deps-whisper
+.PHONY: run run-fresh build tidy clean env env-fresh unset-env deps-whisper admin-create
 
 deps-whisper:
 	@set -euo pipefail; \
@@ -78,6 +81,11 @@ run:
 	@test -x "$(WHISPER_CPP_BIN)" || (echo "Missing local whisper binary: $(WHISPER_CPP_BIN). Run: make deps-whisper" && exit 1)
 	@test -f "$(WHISPER_MODEL_PATH)" || (echo "Missing local whisper model: $(WHISPER_MODEL_PATH). Run: make deps-whisper" && exit 1)
 	$(GO) run ./cmd/server
+
+admin-create:
+	@test -n "$(USER)" || (echo "Usage: make admin-create USER=admin PASS='strong-password'" && exit 1)
+	@test -n "$(PASS)" || (echo "Usage: make admin-create USER=admin PASS='strong-password'" && exit 1)
+	$(GO) run ./cmd/admin create-user --username "$(USER)" --password "$(PASS)"
 
 run-fresh:
 	@env $(UNSET_FLAGS) PATH="$$PATH" HOME="$$HOME" $(MAKE) --no-print-directory run
@@ -114,6 +122,8 @@ env:
 	@echo "YTDLP_BIN=$(YTDLP_BIN)"
 	@echo "TRANSCRIPT_FALLBACK_PATH=$(TRANSCRIPT_FALLBACK_PATH)"
 	@echo "ENABLE_TRANSLATION=$(ENABLE_TRANSLATION)"
+	@echo "ADMIN_SESSION_TTL=$(ADMIN_SESSION_TTL)"
+	@echo "ADMIN_COOKIE_NAME=$(ADMIN_COOKIE_NAME)"
 
 env-fresh:
 	@env $(UNSET_FLAGS) PATH="$$PATH" HOME="$$HOME" $(MAKE) --no-print-directory env

@@ -5,6 +5,12 @@ Local-first technical video analysis pipeline using Go, SQLite, local artifacts,
 ## Features
 
 - Single binary (`go run ./cmd/server`) for API + UI
+- Public read-only landing page (`/`) for sections, transcripts, and multilingual blogs
+- Authenticated admin page (`/admin`) for:
+  - creating/editing/deleting sections
+  - moving blogs between sections
+  - deleting/restoring blogs
+  - editing blog markdown per language
 - SQLite metadata + chunk embeddings storage
 - Local artifact persistence per job
 - Independently configurable model hosts for:
@@ -41,6 +47,9 @@ export MODEL_RETRY_BACKOFF=10s
 export FFMPEG_BIN=ffmpeg
 export WHISPER_CPP_BIN=./deps/whisper.cpp/build/bin/whisper-cli
 export WHISPER_MODEL_PATH=./deps/whisper.cpp/models/ggml-base.bin
+
+export ADMIN_SESSION_TTL=72h
+export ADMIN_COOKIE_NAME=vtb_admin_session
 ```
 
 2. Run:
@@ -56,12 +65,37 @@ make deps-whisper
 make run
 ```
 
-3. Open:
+4. Create the first admin user (one-time):
 
-- http://localhost:8080
+```bash
+make admin-create USER=admin PASS='change-this-password'
+```
+
+5. Open:
+
+- Public landing page: http://localhost:8080
+- Admin page: http://localhost:8080/admin
 
 ## API
 
+- Public:
+  - `GET /api/public/catalog`
+- Admin auth:
+  - `POST /api/admin/login`
+  - `POST /api/admin/logout`
+  - `GET /api/admin/me`
+- Admin content:
+  - `GET /api/admin/catalog`
+  - `GET /api/admin/sections`
+  - `POST /api/admin/sections`
+  - `PUT /api/admin/sections/{section_id}`
+  - `DELETE /api/admin/sections/{section_id}`
+  - `GET /api/admin/blogs/{blog_id}`
+  - `PUT /api/admin/blogs/{blog_id}`
+  - `DELETE /api/admin/blogs/{blog_id}`
+  - `POST /api/admin/blogs/{blog_id}/restore`
+  - `PUT /api/admin/blogs/{blog_id}/section`
+  - `PUT /api/admin/blogs/{blog_id}/content`
 - `POST /api/jobs`
 - `GET /api/jobs`
 - `GET /api/jobs/{job_id}`
@@ -75,6 +109,7 @@ make run
 
 ## Notes
 
+- No self-registration endpoint is provided. Admin users can only be created via CLI.
 - URL downloads use `yt-dlp` (`YTDLP_BIN`, default `yt-dlp`) when `source_type=url`.
 - Transcription uses `whisper-cli`; if unavailable, fallback transcript file can be used via `TRANSCRIPT_FALLBACK_PATH`.
 - Markdown translation preserves structure by prompt instruction, but model behavior depends on the translation model.

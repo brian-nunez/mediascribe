@@ -126,7 +126,7 @@ func (r Runner) Run(ctx context.Context, jobID string) error {
 		case StageOptionalTranslate:
 			stageErr = runOptionalTranslate(ctx, job, translator)
 		case StageMarkComplete:
-			stageErr = runMarkComplete(ctx, r.Store, job)
+			stageErr = runMarkComplete(ctx, r.Store, job, embedder)
 		default:
 			stageErr = fmt.Errorf("unknown stage: %s", stage.Name)
 		}
@@ -350,10 +350,13 @@ func runOptionalTranslate(ctx context.Context, job db.Job, translator translatio
 	return artifacts.WriteString(filepath.Join(job.ArtifactDir, filename), translated)
 }
 
-func runMarkComplete(ctx context.Context, store *db.Store, job db.Job) error {
+func runMarkComplete(ctx context.Context, store *db.Store, job db.Job, embedder embeddings.Embedder) error {
 	finalPath := filepath.Join(job.ArtifactDir, "final.md")
 	if _, err := os.Stat(finalPath); err != nil {
 		return fmt.Errorf("missing final markdown: %w", err)
+	}
+	if err := GenerateBlogOutputEmbeddings(ctx, store, job, embedder); err != nil {
+		return err
 	}
 
 	blog, err := defaultBlogOutput(store, ctx, job.ID)
@@ -371,8 +374,18 @@ func runMarkComplete(ctx context.Context, store *db.Store, job db.Job) error {
 	if err := store.UpsertBlogOutput(ctx, blog); err != nil {
 		return err
 	}
+	// Cleanup large source video artifact after successful completion to save disk.
+	_ = cleanupSourceVideo(job.ArtifactDir)
 
 	return store.MarkJobComplete(ctx, job.ID)
+}
+
+func cleanupSourceVideo(artifactDir string) error {
+	videoPath := filepath.Join(artifactDir, "source.mp4")
+	if err := os.Remove(videoPath); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
 func (r Runner) failJob(ctx context.Context, jobID, stage string, stageErr error) error {

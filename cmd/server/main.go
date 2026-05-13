@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/brian-nunez/video-to-blog-page/internal/artifacts"
+	"github.com/brian-nunez/video-to-blog-page/internal/auth"
 	"github.com/brian-nunez/video-to-blog-page/internal/config"
 	"github.com/brian-nunez/video-to-blog-page/internal/db"
 	api "github.com/brian-nunez/video-to-blog-page/internal/http"
@@ -62,6 +63,11 @@ func main() {
 		TranslationModelBaseURL: cfg.DefaultTranslateModelBaseURL,
 		EnableTranslation:       cfg.EnableTranslation,
 	})
+	go func() {
+		if err := jobSvc.BackfillOutputEmbeddings(context.Background()); err != nil {
+			log.Printf("output embedding backfill failed: %v", err)
+		}
+	}()
 
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -69,7 +75,12 @@ func main() {
 	}
 
 	h := api.Handler{
-		Jobs:      jobSvc,
+		Jobs: jobSvc,
+		Auth: auth.Service{
+			Store:      store,
+			SessionTTL: cfg.AdminSessionTTL,
+			CookieName: cfg.AdminCookieName,
+		},
 		UIRootDir: filepath.Join(cwd, "ui"),
 	}
 
