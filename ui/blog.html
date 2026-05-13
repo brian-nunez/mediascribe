@@ -59,6 +59,39 @@
       overflow: auto;
       font-size: 0.86rem;
     }
+    #article table {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      white-space: normal;
+    }
+    #article thead, #article tbody, #article tr {
+      width: 100%;
+    }
+    #article th, #article td {
+      min-width: 140px;
+      border: 1px solid var(--line);
+      padding: 0.55rem 0.65rem;
+      vertical-align: top;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+    #article th {
+      background: #f3f4f6;
+      font-weight: 700;
+    }
+    #article img, #article iframe, #article video {
+      max-width: 100%;
+      height: auto;
+    }
+    #article * {
+      max-width: 100%;
+      box-sizing: border-box;
+    }
     #article code {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       font-size: 0.86em;
