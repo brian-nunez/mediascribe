@@ -87,12 +87,11 @@
         </div>
 
         <div class="mt-5 border-t border-slate-200 pt-4">
-          <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500" for="global_search_q">Global Semantic Search</label>
-          <div class="flex gap-2">
-            <input id="global_search_q" class="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none" placeholder="Find concepts across jobs" />
-            <button id="global_search_btn" class="rounded-lg bg-slate-800 px-3 py-2 text-sm font-medium text-white hover:bg-slate-900">Search</button>
-          </div>
-          <div id="search_results" class="mt-2 max-h-40 space-y-2 overflow-auto"></div>
+          <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-500">Global Search</label>
+          <button id="search_open_btn" class="group flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-500 transition hover:border-slate-400 hover:bg-slate-50">
+            <span class="truncate">Search transcripts and embeddings across jobs...</span>
+            <span class="ml-2 rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 group-hover:border-slate-400">⌘K</span>
+          </button>
         </div>
 
         <div class="mt-5 border-t border-slate-200 pt-4">
@@ -137,6 +136,10 @@
               <span id="blog_chevron" class="text-slate-500 transition-transform">▾</span>
             </button>
             <div id="blog_panel" class="border-t border-slate-100 px-4 py-3">
+              <div class="mb-2 flex items-center justify-end gap-2">
+                <button id="copy_markdown_btn" class="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50" disabled>Copy Markdown</button>
+                <span id="copy_markdown_status" class="text-[11px] text-slate-500"></span>
+              </div>
               <div class="mb-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <div class="flex flex-wrap items-end gap-2">
                   <div class="min-w-[160px] flex-1">
@@ -161,6 +164,25 @@
     </div>
   </main>
 
+  <div id="search_modal" class="fixed inset-0 z-50 hidden">
+    <button id="search_backdrop" class="absolute inset-0 bg-slate-900/35 backdrop-blur-[1px]"></button>
+    <div class="relative mx-auto mt-16 w-[94%] max-w-3xl rounded-2xl border border-slate-200 bg-white shadow-2xl">
+      <div class="border-b border-slate-200 p-3">
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-slate-400">⌕</span>
+          <input id="global_search_q" class="min-w-0 flex-1 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none" placeholder="Search docs-style across all transcript chunks..." />
+          <button id="search_close_btn" class="rounded border border-slate-300 px-2 py-1 text-[11px] font-semibold text-slate-500 hover:border-slate-400 hover:text-slate-700">ESC</button>
+        </div>
+      </div>
+      <div id="search_results" class="max-h-[62vh] overflow-auto p-2"></div>
+      <div class="flex items-center justify-between border-t border-slate-200 px-3 py-2 text-[11px] text-slate-500">
+        <span>↑ ↓ move</span>
+        <span>Enter open job</span>
+        <span>Semantic + lexical match</span>
+      </div>
+    </div>
+  </div>
+
   <script>
     marked.setOptions({
       gfm: true,
@@ -172,7 +194,10 @@
     const sourceValueEl = document.getElementById('source_value');
     const mainModelEl = document.getElementById('main_model');
     const globalSearchQEl = document.getElementById('global_search_q');
-    const globalSearchBtnEl = document.getElementById('global_search_btn');
+    const searchOpenBtnEl = document.getElementById('search_open_btn');
+    const searchModalEl = document.getElementById('search_modal');
+    const searchBackdropEl = document.getElementById('search_backdrop');
+    const searchCloseBtnEl = document.getElementById('search_close_btn');
     const searchResultsEl = document.getElementById('search_results');
 
     const jobMetaEl = document.getElementById('job_meta');
@@ -185,6 +210,8 @@
     const translationEtaEl = document.getElementById('translation_eta');
     const translationListEl = document.getElementById('translation_list');
     const translationHistoryEl = document.getElementById('translation_history');
+    const copyMarkdownBtnEl = document.getElementById('copy_markdown_btn');
+    const copyMarkdownStatusEl = document.getElementById('copy_markdown_status');
     const transcriptToggleEl = document.getElementById('transcript_toggle');
     const blogToggleEl = document.getElementById('blog_toggle');
     const transcriptPanelEl = document.getElementById('transcript_panel');
@@ -225,6 +252,11 @@
     let translationAnimTimer = null;
     let latestJobState = null;
     let translationSourceMarkdown = '';
+    let currentMarkdownRaw = '';
+    let searchResultsState = [];
+    let searchSelectedIndex = -1;
+    let searchDebounceTimer = null;
+    let copyStatusTimer = null;
 
     async function api(path, opts = {}) {
       const res = await fetch(path, {
@@ -247,6 +279,87 @@
     function trimSnippet(text) {
       const clean = String(text || '').replace(/\s+/g, ' ').trim();
       return clean.length > 180 ? `${clean.slice(0, 180)}...` : clean;
+    }
+
+    function escapeRegExp(value) {
+      return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function searchTerms(query) {
+      return String(query || '')
+        .toLowerCase()
+        .split(/\s+/)
+        .map(s => s.trim())
+        .filter(s => s.length >= 2)
+        .slice(0, 8);
+    }
+
+    function formatSeconds(total) {
+      if (!Number.isFinite(total) || total < 0) return '--:--';
+      const seconds = Math.round(total);
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function buildMatchSnippet(content, query) {
+      const raw = String(content || '');
+      if (!raw) return '';
+      const flat = raw.replace(/\s+/g, ' ').trim();
+      if (!flat) return '';
+
+      const lower = flat.toLowerCase();
+      const terms = searchTerms(query);
+      let idx = -1;
+
+      for (const term of terms) {
+        const pos = lower.indexOf(term);
+        if (pos >= 0 && (idx < 0 || pos < idx)) idx = pos;
+      }
+      if (idx < 0) {
+        const whole = String(query || '').toLowerCase().trim();
+        idx = whole ? lower.indexOf(whole) : -1;
+      }
+      if (idx < 0) {
+        return trimSnippet(flat);
+      }
+
+      const start = Math.max(0, idx - 72);
+      const end = Math.min(flat.length, idx + 144);
+      const prefix = start > 0 ? '…' : '';
+      const suffix = end < flat.length ? '…' : '';
+      return `${prefix}${flat.slice(start, end)}${suffix}`;
+    }
+
+    function highlightMatches(text, query) {
+      const base = escapeHTML(String(text || ''));
+      const terms = searchTerms(query);
+      if (!terms.length) return base;
+      const pattern = terms.map(escapeRegExp).join('|');
+      if (!pattern) return base;
+      const re = new RegExp(`(${pattern})`, 'ig');
+      return base.replace(re, '<mark class="rounded bg-amber-200/80 px-0.5">$1</mark>');
+    }
+
+    function setCopyMarkdownState(enabled, statusText = '') {
+      copyMarkdownBtnEl.disabled = !enabled;
+      copyMarkdownStatusEl.textContent = statusText;
+    }
+
+    async function copyPlainText(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+      const tmp = document.createElement('textarea');
+      tmp.value = text;
+      tmp.setAttribute('readonly', 'readonly');
+      tmp.style.position = 'fixed';
+      tmp.style.opacity = '0';
+      document.body.appendChild(tmp);
+      tmp.select();
+      document.execCommand('copy');
+      document.body.removeChild(tmp);
     }
 
     function isHTTPURL(value) {
@@ -319,6 +432,8 @@
     }
 
     function renderTranslationSkeleton(markdown, lang) {
+      currentMarkdownRaw = '';
+      setCopyMarkdownState(false, 'Copy available once markdown is ready');
       const widths = buildSkeletonLineWidths(markdown);
       const first = widths.slice(0, 3);
       const rest = widths.slice(3);
@@ -498,6 +613,8 @@
     }
 
     function renderMarkdownReady(markdown) {
+      currentMarkdownRaw = String(markdown || '');
+      setCopyMarkdownState(currentMarkdownRaw.trim() !== '', '');
       blogEl.innerHTML = marked.parse(markdown || '');
     }
 
@@ -550,6 +667,8 @@
       try {
         const blog = await api(`/api/jobs/${jobId}/blog${langQuery}`);
         if (blog.ready === false) {
+          currentMarkdownRaw = '';
+          setCopyMarkdownState(false, 'Markdown not ready');
           if (blog.status === 'failed') {
             blogEl.innerHTML = `<p class=\"rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600\">${escapeHTML(`Blog unavailable because job failed at stage: ${blog.current_stage || 'unknown'}`)}</p>`;
           } else {
@@ -574,6 +693,8 @@
           }
         }
       } catch (err) {
+        currentMarkdownRaw = '';
+        setCopyMarkdownState(false, 'Markdown unavailable');
         blogEl.innerHTML = `<p class=\"rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700\">Blog unavailable: ${escapeHTML(err.message)}</p>`;
       }
     }
@@ -653,38 +774,80 @@
       await selectJob(selectedJob);
     }
 
+    function openSearchModal() {
+      searchModalEl.classList.remove('hidden');
+      setTimeout(() => globalSearchQEl.focus(), 0);
+      if (globalSearchQEl.value.trim()) {
+        runGlobalSearch().catch(err => {
+          searchResultsEl.innerHTML = `<p class="px-2 py-3 text-xs text-red-600">Search failed: ${escapeHTML(err.message)}</p>`;
+        });
+      } else {
+        searchResultsEl.innerHTML = '<p class="px-2 py-3 text-xs text-slate-500">Type to search across all jobs.</p>';
+      }
+    }
+
+    function closeSearchModal() {
+      searchModalEl.classList.add('hidden');
+      searchSelectedIndex = -1;
+    }
+
     async function runGlobalSearch() {
       const q = globalSearchQEl.value.trim();
       if (q === '') {
-        searchResultsEl.innerHTML = '';
+        searchResultsState = [];
+        searchSelectedIndex = -1;
+        searchResultsEl.innerHTML = '<p class="px-2 py-3 text-xs text-slate-500">Type to search across all jobs.</p>';
         return;
       }
 
-      searchResultsEl.innerHTML = '<p class="text-xs text-slate-500">Searching...</p>';
-      const data = await api(`/api/search?q=${encodeURIComponent(q)}&limit=8`);
-      renderSearchResults(data.results || []);
+      searchResultsEl.innerHTML = '<p class="px-2 py-3 text-xs text-slate-500">Searching...</p>';
+      const data = await api(`/api/search?q=${encodeURIComponent(q)}&limit=12`);
+      searchResultsState = data.results || [];
+      searchSelectedIndex = searchResultsState.length ? 0 : -1;
+      renderSearchResults(searchResultsState, q);
     }
 
-    function renderSearchResults(results) {
+    async function activateSearchResult(index) {
+      if (index < 0 || index >= searchResultsState.length) return;
+      const item = searchResultsState[index];
+      await selectJob(item.job_id);
+      closeSearchModal();
+    }
+
+    function renderSearchResults(results, query) {
       searchResultsEl.innerHTML = '';
       if (!results.length) {
-        searchResultsEl.innerHTML = '<p class="text-xs text-slate-500">No matches yet.</p>';
+        searchResultsEl.innerHTML = '<p class="px-2 py-3 text-xs text-slate-500">No matches found.</p>';
         return;
       }
 
-      for (const item of results) {
+      const terms = searchTerms(query);
+      for (let idx = 0; idx < results.length; idx += 1) {
+        const item = results[idx];
+        const selected = idx === searchSelectedIndex;
+        const snippet = buildMatchSnippet(item.content || '', query);
+        let hits = 0;
+        for (const term of terms) {
+          const re = new RegExp(escapeRegExp(term), 'ig');
+          hits += (String(item.content || '').match(re) || []).length;
+        }
+
         const row = document.createElement('button');
         row.type = 'button';
-        row.className = 'w-full rounded-lg border border-slate-200 bg-slate-50 p-2 text-left transition hover:border-slate-300';
+        row.className = `mb-2 w-full rounded-xl border p-3 text-left transition ${selected ? 'border-indigo-300 bg-indigo-50/70' : 'border-slate-200 bg-slate-50 hover:border-slate-300'}`;
         row.innerHTML = `
-          <div class="flex items-center justify-between text-[11px] text-slate-500">
-            <span>${escapeHTML((item.job_id || '').slice(0, 8))} · chunk ${escapeHTML(String(item.chunk_index ?? '-'))}</span>
-            <span>score ${(item.score || 0).toFixed(3)}</span>
+          <div class="flex items-center justify-between gap-2 text-[11px] text-slate-500">
+            <span class="truncate">${escapeHTML(item.job_title || 'Untitled Job')}</span>
+            <span class="shrink-0 rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">score ${(item.score || 0).toFixed(3)}</span>
           </div>
-          <div class="mt-1 text-xs font-semibold text-slate-800">${escapeHTML(item.job_title || 'Untitled Job')}</div>
-          <div class="mt-1 text-xs text-slate-600">${escapeHTML(trimSnippet(item.content || ''))}</div>
+          <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+            <span class="rounded bg-white px-1.5 py-0.5">chunk ${escapeHTML(String(item.chunk_index ?? '-'))}</span>
+            <span class="rounded bg-white px-1.5 py-0.5">${escapeHTML(formatSeconds(item.start_time_seconds))} - ${escapeHTML(formatSeconds(item.end_time_seconds))}</span>
+            <span class="rounded bg-white px-1.5 py-0.5">${hits} term match${hits === 1 ? '' : 'es'}</span>
+          </div>
+          <p class="mt-2 text-sm leading-relaxed text-slate-700">${highlightMatches(snippet, query)}</p>
         `;
-        row.onclick = () => selectJob(item.job_id);
+        row.onclick = () => activateSearchResult(idx);
         searchResultsEl.appendChild(row);
       }
     }
@@ -784,17 +947,90 @@
       renderCollapsibles();
     };
 
-    globalSearchBtnEl.onclick = async () => {
-      try { await runGlobalSearch(); }
-      catch (err) { searchResultsEl.textContent = `Search failed: ${err.message}`; }
+    searchOpenBtnEl.onclick = () => {
+      openSearchModal();
+    };
+
+    searchBackdropEl.onclick = () => {
+      closeSearchModal();
+    };
+
+    searchCloseBtnEl.onclick = () => {
+      closeSearchModal();
     };
 
     globalSearchQEl.addEventListener('keydown', async (event) => {
-      if (event.key !== 'Enter') return;
-      event.preventDefault();
-      try { await runGlobalSearch(); }
-      catch (err) { searchResultsEl.textContent = `Search failed: ${err.message}`; }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeSearchModal();
+        return;
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        if (searchResultsState.length) {
+          searchSelectedIndex = Math.min(searchResultsState.length - 1, searchSelectedIndex + 1);
+          renderSearchResults(searchResultsState, globalSearchQEl.value);
+        }
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        if (searchResultsState.length) {
+          searchSelectedIndex = Math.max(0, searchSelectedIndex - 1);
+          renderSearchResults(searchResultsState, globalSearchQEl.value);
+        }
+        return;
+      }
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        if (searchSelectedIndex >= 0) {
+          try { await activateSearchResult(searchSelectedIndex); }
+          catch (err) { searchResultsEl.innerHTML = `<p class="px-2 py-3 text-xs text-red-600">Open failed: ${escapeHTML(err.message)}</p>`; }
+          return;
+        }
+        try { await runGlobalSearch(); }
+        catch (err) { searchResultsEl.innerHTML = `<p class="px-2 py-3 text-xs text-red-600">Search failed: ${escapeHTML(err.message)}</p>`; }
+      }
     });
+
+    globalSearchQEl.addEventListener('input', () => {
+      if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(() => {
+        runGlobalSearch().catch(err => {
+          searchResultsEl.innerHTML = `<p class="px-2 py-3 text-xs text-red-600">Search failed: ${escapeHTML(err.message)}</p>`;
+        });
+      }, 180);
+    });
+
+    document.addEventListener('keydown', (event) => {
+      const key = String(event.key || '').toLowerCase();
+      if ((event.metaKey || event.ctrlKey) && key === 'k') {
+        event.preventDefault();
+        if (searchModalEl.classList.contains('hidden')) {
+          openSearchModal();
+        } else {
+          closeSearchModal();
+        }
+      }
+    });
+
+    copyMarkdownBtnEl.onclick = async () => {
+      const text = String(currentMarkdownRaw || '');
+      if (text.trim() === '') {
+        setCopyMarkdownState(false, 'Nothing to copy');
+        return;
+      }
+      try {
+        await copyPlainText(text);
+        setCopyMarkdownState(true, 'Copied');
+      } catch (err) {
+        setCopyMarkdownState(true, `Copy failed: ${err.message}`);
+      }
+      if (copyStatusTimer) clearTimeout(copyStatusTimer);
+      copyStatusTimer = setTimeout(() => {
+        setCopyMarkdownState(true, '');
+      }, 1400);
+    };
 
     loadJobs().catch(err => {
       jobsEl.textContent = `Failed to load jobs: ${err.message}`;
