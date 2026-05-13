@@ -52,7 +52,10 @@ export ENABLE_TRANSLATION ?= false
 export ADMIN_SESSION_TTL ?= 72h
 export ADMIN_COOKIE_NAME ?= vtb_admin_session
 
-.PHONY: run run-fresh build tidy clean env env-fresh unset-env deps-whisper admin-create
+.PHONY: run run-fresh build tidy clean env env-fresh unset-env deps-whisper admin-create \
+	docker-build docker-up docker-down docker-logs docker-rebuild-embeddings
+
+DOCKER_IMAGE ?= mediascribe:latest
 
 deps-whisper:
 	@set -euo pipefail; \
@@ -130,3 +133,18 @@ env-fresh:
 
 unset-env:
 	@echo "unset $(APP_ENV_VARS)"
+
+docker-build:
+	docker build -t $(DOCKER_IMAGE) .
+
+docker-up:
+	docker compose up -d --build
+
+docker-down:
+	docker compose down
+
+docker-logs:
+	docker compose logs -f mediascribe
+
+docker-rebuild-embeddings:
+	docker compose exec mediascribe rebuild-embeddings

@@ -2,78 +2,106 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Video to Blog</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#111111" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="MediaScribe" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+  <title>MediaScribe | Editorial Feed</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,500;6..72,700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600;6..72,700;6..72,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <style>
     :root {
-      --bg: #f8f8f6;
+      --bg: #f9f9f9;
       --surface: #ffffff;
-      --text: #18181b;
-      --muted: #6b7280;
-      --line: #e5e7eb;
-      --soft: #f3f4f6;
+      --line: #dfe4dd;
+      --text: #1a1c1c;
+      --muted: #5f5e5e;
+      --primary: #111111;
+      --primary-soft: #f2f2f2;
     }
     body {
-      background: radial-gradient(1200px 500px at 85% -10%, #f0fdf4 0%, transparent 60%), var(--bg);
+      background: var(--bg);
       color: var(--text);
-      font-family: 'Manrope', ui-sans-serif, system-ui, -apple-system, sans-serif;
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
     }
-    .brand { font-family: 'Newsreader', Georgia, serif; }
-    mark {
-      background: #fde68a;
-      border-radius: 0.2rem;
-      padding: 0 0.12rem;
-    }
+    .brand { font-family: Newsreader, Georgia, serif; }
+    mark { background: #fde68a; border-radius: 2px; padding: 0 2px; }
   </style>
 </head>
-<body>
-  <header class="sticky top-0 z-40 border-b border-[var(--line)] bg-[var(--surface)]/95 backdrop-blur">
-    <div class="mx-auto flex w-[96%] max-w-[1300px] items-center gap-3 py-3">
-      <a href="/" class="brand text-[2rem] leading-none tracking-tight">Video to Blog</a>
-
-      <div class="relative min-w-0 flex-1">
-        <div class="flex items-center rounded-full border border-[var(--line)] bg-[var(--soft)] px-3 py-2 transition focus-within:border-slate-400">
-          <span class="mr-2 text-sm text-slate-500">⌕</span>
-          <input id="search_input" class="w-full bg-transparent text-sm text-slate-800 placeholder:text-slate-500 focus:outline-none" placeholder="Search technical topics and concepts" />
+<body class="overflow-x-hidden">
+  <header class="fixed top-0 left-0 right-0 z-50 bg-[var(--surface)] border-b border-[var(--line)]">
+      <div class="mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between px-5">
+        <div class="flex items-center gap-3">
+          <button id="menu_btn" class="rounded-full p-2 text-[var(--primary)] hover:bg-[var(--primary-soft)]" type="button" aria-label="Toggle navigation">☰</button>
+          <a href="/" class="brand text-4xl font-black tracking-tight text-[var(--primary)]">MediaScribe</a>
         </div>
-        <div id="search_dropdown" class="absolute left-0 right-0 top-12 hidden max-h-[360px] overflow-auto rounded-xl border border-[var(--line)] bg-white p-2 shadow-2xl"></div>
+        <a href="/admin" class="rounded-full border border-[var(--line)] px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Admin</a>
+      </div>
+    </header>
+
+  <div id="mobile_backdrop" class="fixed inset-0 z-40 hidden bg-black/35 md:hidden"></div>
+
+  <div class="mx-auto flex max-w-[1200px] pt-16">
+    <aside id="left_nav" class="fixed left-0 top-16 z-50 flex h-[calc(100vh-64px)] w-[280px] -translate-x-full flex-col overflow-y-auto border-r border-[var(--line)] bg-white p-6 transition-transform duration-200 md:sticky md:top-16 md:z-auto md:translate-x-0">
+      <h2 class="brand text-3xl font-bold text-[var(--primary)]">Sections</h2>
+      <div class="mt-3 rounded-lg border border-[var(--line)] bg-slate-50 px-3 py-2">
+        <input id="section_search" class="w-full border-0 bg-transparent p-0 text-sm text-slate-700 placeholder:text-slate-500 focus:ring-0" placeholder="Filter sections" />
+      </div>
+      <div id="section_list" class="mt-3 space-y-1"></div>
+
+      <div class="mt-5 border-t border-[var(--line)] pt-4">
+        <h3 class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Language</h3>
+        <div id="language_list" class="mt-2 space-y-1"></div>
       </div>
 
-      <a href="/admin" class="rounded-full border border-[var(--line)] px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">Admin</a>
-    </div>
-  </header>
+      <div class="mt-auto border-t border-[var(--line)] pt-4">
+        <p class="text-sm text-[var(--muted)]">Editorial note: each article is produced with AI from source videos, then refined to remove filler language and expand the technical depth, structure, and implementation clarity.</p>
+      </div>
+    </aside>
 
-  <main class="mx-auto w-[96%] max-w-[1300px] py-4">
-    <div class="grid gap-4 lg:grid-cols-[240px,1fr]">
-      <aside class="h-fit rounded-2xl border border-[var(--line)] bg-white p-3 lg:sticky lg:top-[78px]">
-        <p class="px-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">Sections</p>
-        <div class="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
-          <input id="section_search" class="w-full bg-transparent text-xs text-slate-700 placeholder:text-slate-500 focus:outline-none" placeholder="Filter sections..." />
+    <main class="w-full max-w-[760px] flex-1 px-5 py-6">
+      <div class="relative">
+        <div class="flex items-center rounded-full border border-[var(--line)] bg-[var(--surface)] px-4 py-2.5">
+          <span class="mr-2 text-sm text-slate-500">⌕</span>
+          <input id="search_input" class="w-full border-0 bg-transparent p-0 text-base text-slate-800 placeholder:text-slate-500 focus:ring-0" placeholder="Search technical topics and concepts" />
         </div>
-        <div id="section_list" class="mt-2 space-y-1"></div>
-      </aside>
+        <div id="search_dropdown" class="absolute left-0 right-0 top-12 z-50 hidden max-h-[360px] overflow-auto rounded-xl border border-[var(--line)] bg-white p-2 shadow-xl"></div>
+      </div>
 
-      <section class="rounded-2xl border border-[var(--line)] bg-white p-2 sm:p-3">
-        <div class="border-b border-[var(--line)] px-2 pb-3 pt-1">
-          <h1 class="brand text-[1.6rem] leading-tight">Technical Blog Feed</h1>
-          <p id="feed_meta" class="mt-1 text-xs text-slate-500">Loading…</p>
-        </div>
-        <div id="feed" class="divide-y divide-[var(--line)]"></div>
+      <section class="mt-7">
+        <h1 class="brand text-5xl font-bold leading-tight text-slate-900">Technical Blog Feed</h1>
+        <p id="feed_meta" class="mt-2 text-sm text-slate-500">Loading…</p>
       </section>
+
+      <section id="feed" class="mt-6 divide-y divide-[var(--line)]"></section>
+    </main>
+  </div>
+
+  <footer class="mt-10 border-t border-[var(--line)] bg-white">
+    <div class="mx-auto flex max-w-[760px] flex-col items-center gap-3 px-5 py-8 text-center">
+      <h3 class="brand text-3xl font-semibold text-slate-500/70">MediaScribe</h3>
+      <p class="text-sm text-slate-600">MediaScribe, written from video and developed by Brian Nunez · <a class="text-[var(--primary)] underline" href="https://github.com/brian-nunez" target="_blank" rel="noopener noreferrer">github.com/brian-nunez</a></p>
     </div>
-  </main>
+  </footer>
 
   <script>
     const sectionListEl = document.getElementById('section_list');
     const sectionSearchEl = document.getElementById('section_search');
+    const languageListEl = document.getElementById('language_list');
     const feedEl = document.getElementById('feed');
     const feedMetaEl = document.getElementById('feed_meta');
     const searchInputEl = document.getElementById('search_input');
     const searchDropdownEl = document.getElementById('search_dropdown');
+    const menuBtnEl = document.getElementById('menu_btn');
+    const leftNavEl = document.getElementById('left_nav');
+    const mobileBackdropEl = document.getElementById('mobile_backdrop');
 
     const state = {
       sections: [{ id: 'all', name: 'All', count: 0 }],
@@ -90,7 +118,28 @@
       hasMore: true,
       loading: false,
       sectionFilter: '',
+      selectedLanguage: 'all',
+      navOpen: false,
     };
+
+    function applyNavState() {
+      const desktop = window.matchMedia('(min-width: 768px)').matches;
+      if (desktop) {
+        mobileBackdropEl.classList.add('hidden');
+        if (state.navOpen) leftNavEl.classList.add('md:hidden');
+        else leftNavEl.classList.remove('md:hidden');
+        leftNavEl.classList.remove('-translate-x-full');
+        return;
+      }
+      leftNavEl.classList.remove('md:hidden');
+      if (state.navOpen) {
+        leftNavEl.classList.remove('-translate-x-full');
+        mobileBackdropEl.classList.remove('hidden');
+      } else {
+        leftNavEl.classList.add('-translate-x-full');
+        mobileBackdropEl.classList.add('hidden');
+      }
+    }
 
     function escapeHTML(value) {
       return String(value || '')
@@ -101,23 +150,10 @@
         .replaceAll("'", '&#039;');
     }
 
-    function escapeRegExp(value) {
-      return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }
-
     function dateLabel(value) {
       const d = new Date(value || 0);
       if (Number.isNaN(d.getTime())) return '';
       return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-    }
-
-    function timeLabel(total) {
-      const n = Number(total || 0);
-      if (!Number.isFinite(n) || n < 0) return '--:--';
-      const sec = Math.floor(n);
-      const m = Math.floor(sec / 60);
-      const s = sec % 60;
-      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     }
 
     function sourceDomain(source) {
@@ -129,21 +165,32 @@
       return 'local path';
     }
 
-    function highlight(text, query) {
-      const q = String(query || '').trim();
-      if (!q) return escapeHTML(text);
-      const terms = q.split(/\s+/).filter(x => x.length > 1).slice(0, 8);
-      if (!terms.length) return escapeHTML(text);
-      const pattern = terms.map(escapeRegExp).join('|');
-      if (!pattern) return escapeHTML(text);
-      return escapeHTML(text).replace(new RegExp(`(${pattern})`, 'ig'), '<mark>$1</mark>');
+    function blogURL(blog) {
+      return `/blog/${encodeURIComponent(blog.id)}?lang=en`;
+    }
+
+    function searchSnippet(content) {
+      const text = String(content || '').replace(/\s+/g, ' ').trim();
+      if (text.length <= 170) return text;
+      return `${text.slice(0, 170)}...`;
+    }
+
+    function timeLabel(total) {
+      const n = Number(total || 0);
+      if (!Number.isFinite(n) || n < 0) return '--:--';
+      const sec = Math.floor(n);
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     }
 
     function sectionButton(section, active) {
-      return `<button data-section="${escapeHTML(section.id)}" class="w-full rounded-lg px-2.5 py-2 text-left text-sm transition ${active ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'}">
-        <span>${escapeHTML(section.name)}</span>
-        <span class="ml-1 text-xs ${active ? 'text-slate-200' : 'text-slate-500'}">(${Number(section.count || 0)})</span>
-      </button>`;
+      return `<button data-section="${escapeHTML(section.id)}" class="w-full rounded-full px-3 py-2 text-left text-sm transition ${active ? 'bg-[var(--primary)] text-white' : 'text-slate-700 hover:bg-slate-100'}">${escapeHTML(section.name)} (${Number(section.count || 0)})</button>`;
+    }
+
+    function languageButton(lang, count, active) {
+      const label = lang === 'all' ? 'All languages' : lang;
+      return `<button data-language="${escapeHTML(lang)}" class="w-full rounded-full px-3 py-1.5 text-left text-xs transition ${active ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'}">${escapeHTML(label)} (${count})</button>`;
     }
 
     function renderSections() {
@@ -160,19 +207,33 @@
       });
     }
 
-    function blogURL(blog) {
-      return `/blog/${encodeURIComponent(blog.id)}?lang=en`;
-    }
-
-    function matchSummary(blog) {
-      const entries = state.searchMap.get(blog.job_id) || [];
-      if (!entries.length) return '';
-      const top = entries[0];
-      return `Match in chunk ${top.chunk_index} (${timeLabel(top.start_time_seconds)}-${timeLabel(top.end_time_seconds)})`;
+    function renderLanguageFilter() {
+      const counts = new Map();
+      counts.set('all', state.items.length);
+      for (const blog of state.items) {
+        const langs = Array.isArray(blog.languages) ? blog.languages : [];
+        for (const lang of langs) counts.set(lang, (counts.get(lang) || 0) + 1);
+      }
+      const langs = Array.from(counts.keys()).filter(k => k !== 'all').sort();
+      languageListEl.innerHTML = ['all', ...langs]
+        .filter((lang) => lang === 'all' || (counts.get(lang) || 0) > 0)
+        .map((lang) => languageButton(lang, counts.get(lang) || 0, lang === state.selectedLanguage))
+        .join('');
+      languageListEl.querySelectorAll('[data-language]').forEach((btn) => {
+        btn.onclick = () => {
+          state.selectedLanguage = btn.getAttribute('data-language') || 'all';
+          renderLanguageFilter();
+          renderFeed();
+        };
+      });
     }
 
     function visibleBlogs() {
-      return state.items;
+      let items = state.items;
+      if (state.selectedLanguage !== 'all') {
+        items = items.filter((b) => Array.isArray(b.languages) && b.languages.includes(state.selectedLanguage));
+      }
+      return items;
     }
 
     function renderFeed() {
@@ -180,36 +241,28 @@
       feedEl.innerHTML = '';
       if (!blogs.length) {
         feedMetaEl.textContent = state.loading ? 'Loading…' : 'No blogs for this filter.';
-        feedEl.innerHTML = '<div class="px-3 py-8 text-sm text-slate-500">Try another section or clear search.</div>';
+        feedEl.innerHTML = '<div class="py-12 text-sm text-slate-500">Try another section or language filter.</div>';
         return;
       }
-
       feedMetaEl.textContent = `${blogs.length} of ${state.total} blog${state.total === 1 ? '' : 's'}`;
 
       for (const blog of blogs) {
         const source = blog.source_url || blog.source_path || '';
         const row = document.createElement('a');
         row.href = blogURL(blog);
-        row.className = 'group block w-full px-2 py-4 text-left transition hover:bg-slate-50';
+        row.className = 'group block py-8';
         row.innerHTML = `
-          <div class="flex items-start justify-between gap-2 text-[11px] text-slate-500">
-            <span class="rounded bg-slate-100 px-2 py-0.5 uppercase tracking-wide">${escapeHTML(blog.section_name || 'Unsectioned')}</span>
-            <span>${escapeHTML(dateLabel(blog.updated_at))}</span>
-          </div>
-          <h3 class="mt-2 text-[1.28rem] font-extrabold leading-snug text-slate-900 transition group-hover:text-slate-700">${escapeHTML(blog.title || 'Untitled')}</h3>
-          <p class="mt-2 text-sm leading-relaxed text-slate-600">${escapeHTML(blog.preview || '')}</p>
-          <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
-            <span>${escapeHTML(sourceDomain(source))}</span>
-            <span>•</span>
-            <span>${(blog.languages || []).length} language${(blog.languages || []).length === 1 ? '' : 's'}</span>
-          </div>
+          <div class="text-xs text-slate-500">${escapeHTML(blog.section_name || 'Unsectioned')} • ${escapeHTML(dateLabel(blog.updated_at))}</div>
+          <h2 class="mt-2 brand text-[2rem] leading-tight text-slate-900 transition group-hover:text-[var(--primary)]">${escapeHTML(blog.title || 'Untitled')}</h2>
+          <p class="mt-2 text-lg leading-relaxed text-slate-600">${escapeHTML(blog.preview || '')}</p>
+          <div class="mt-3 text-xs text-slate-500">${escapeHTML(sourceDomain(source))} • ${(blog.languages || []).length} language${(blog.languages || []).length === 1 ? '' : 's'}</div>
         `;
         feedEl.appendChild(row);
       }
 
       if (state.loading) {
         const loading = document.createElement('div');
-        loading.className = 'px-3 py-4 text-xs text-slate-500';
+        loading.className = 'py-4 text-xs text-slate-500';
         loading.textContent = 'Loading more…';
         feedEl.appendChild(loading);
       }
@@ -219,10 +272,12 @@
       if (state.loading || !state.hasMore) return;
       state.loading = true;
       renderFeed();
+
       const params = new URLSearchParams();
       params.set('limit', String(state.limit));
       params.set('offset', String(state.offset));
       if (state.selectedSection !== 'all') params.set('section_id', state.selectedSection);
+
       const res = await fetch(`/api/public/feed?${params.toString()}`);
       if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
       const page = await res.json();
@@ -236,6 +291,7 @@
       state.hasMore = Boolean(page.has_more);
       state.loading = false;
       renderSections();
+      renderLanguageFilter();
       renderFeed();
     }
 
@@ -245,14 +301,9 @@
       state.total = 0;
       state.hasMore = true;
       state.loading = false;
+      state.selectedLanguage = 'all';
       renderFeed();
       await loadFeedPage();
-    }
-
-    function searchSnippet(content) {
-      const text = String(content || '').replace(/\s+/g, ' ').trim();
-      if (text.length <= 170) return text;
-      return `${text.slice(0, 170)}...`;
     }
 
     function renderSearchDropdown() {
@@ -272,19 +323,16 @@
       for (const item of state.searchResults) {
         const linkedBlog = state.items.find(b => b.job_id === item.job_id);
         if (!linkedBlog) continue;
-        const blogHref = linkedBlog
-          ? `/blog/${encodeURIComponent(linkedBlog.id)}?lang=en&chunk=${encodeURIComponent(item.chunk_index)}&q=${encodeURIComponent(state.query.trim())}`
-          : '#';
         const row = document.createElement('a');
-        row.href = blogHref;
+        row.href = `/blog/${encodeURIComponent(linkedBlog.id)}?lang=en&chunk=${encodeURIComponent(item.chunk_index)}&q=${encodeURIComponent(state.query.trim())}`;
         row.className = 'block rounded-lg px-2 py-2 text-sm hover:bg-slate-100';
         row.innerHTML = `
           <div class="flex items-center justify-between gap-2">
-            <p class="font-semibold text-slate-800">${highlight(linkedBlog.title || 'Untitled', state.query)}</p>
+            <p class="font-semibold text-slate-800">${escapeHTML(linkedBlog.title || 'Untitled')}</p>
             <span class="text-[10px] uppercase tracking-wide text-slate-500">${escapeHTML(linkedBlog.section_name || 'Unsectioned')}</span>
           </div>
-          <p class="mt-1 text-xs text-slate-600">${highlight(searchSnippet(linkedBlog.preview || ''), state.query)}</p>
-          <p class="mt-1 text-[11px] text-slate-500">Best transcript match at ${timeLabel(item.start_time_seconds)}-${timeLabel(item.end_time_seconds)}</p>
+          <p class="mt-1 text-xs text-slate-600">${escapeHTML(searchSnippet(linkedBlog.preview || ''))}</p>
+          <p class="mt-1 text-[11px] text-slate-500">Best match at ${timeLabel(item.start_time_seconds)}-${timeLabel(item.end_time_seconds)}</p>
         `;
         searchDropdownEl.appendChild(row);
       }
@@ -299,7 +347,6 @@
         state.searchResults = [];
         state.searchMap.clear();
         renderSearchDropdown();
-        renderFeed();
         return;
       }
       const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&limit=20`);
@@ -308,32 +355,29 @@
       const raw = Array.isArray(payload.results) ? payload.results : [];
       const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
       const mapped = raw
-        .map(item => ({ ...item, blog_id: item.blog_id || '' }))
+        .map(item => ({ ...item }))
         .filter(item => {
           if (!terms.length) return true;
           const hay = `${String(item.job_title || '').toLowerCase()} ${String(item.content || '').toLowerCase()}`;
           return terms.some(t => hay.includes(t));
         });
+
       const bestByJob = new Map();
       for (const item of mapped) {
         if (!item.job_id) continue;
         const prev = bestByJob.get(item.job_id);
-        if (!prev || Number(item.score || 0) > Number(prev.score || 0)) {
-          bestByJob.set(item.job_id, item);
-        }
+        if (!prev || Number(item.score || 0) > Number(prev.score || 0)) bestByJob.set(item.job_id, item);
       }
       state.searchResults = Array.from(bestByJob.values()).sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
-      state.searchMap.clear();
-      for (const item of state.searchResults) {
-        if (!item.job_id) continue;
-        state.searchMap.set(item.job_id, [item]);
-      }
       renderSearchDropdown();
-      renderFeed();
     }
 
     async function boot() {
+      if ('serviceWorker' in navigator) {
+        try { await navigator.serviceWorker.register('/sw.js'); } catch (_) {}
+      }
       await resetAndLoadFeed();
+      applyNavState();
 
       const sentinel = document.createElement('div');
       sentinel.className = 'h-8';
@@ -365,16 +409,25 @@
             await runSearch(state.query);
           } catch (_) {
             state.searchResults = [];
-            state.searchMap.clear();
             renderSearchDropdown();
-            renderFeed();
           }
         }, 250);
       });
+
       sectionSearchEl.addEventListener('input', () => {
         state.sectionFilter = sectionSearchEl.value || '';
         renderSections();
       });
+
+      menuBtnEl.addEventListener('click', () => {
+        state.navOpen = !state.navOpen;
+        applyNavState();
+      });
+      mobileBackdropEl.addEventListener('click', () => {
+        state.navOpen = false;
+        applyNavState();
+      });
+      window.addEventListener('resize', applyNavState);
     }
 
     boot();

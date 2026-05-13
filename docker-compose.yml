@@ -1,0 +1,51 @@
+version: "3.9"
+
+services:
+  mediascribe:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mediascribe:latest
+    container_name: mediascribe
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      HTTP_ADDR: ${HTTP_ADDR:-:8080}
+      SQLITE_PATH: ${SQLITE_PATH:-/app/data/app.db}
+      ARTIFACT_ROOT: ${ARTIFACT_ROOT:-/app/artifacts/jobs}
+
+      MAIN_MODEL: ${MAIN_MODEL:-gpt-oss}
+      MAIN_MODEL_BASE_URL: ${MAIN_MODEL_BASE_URL:-http://host.docker.internal:11434}
+      MAIN_MODEL_TIMEOUT: ${MAIN_MODEL_TIMEOUT:-1800s}
+      MAIN_MODEL_MAX_RETRIES: ${MAIN_MODEL_MAX_RETRIES:-2}
+
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-embeddinggemma}
+      EMBEDDING_MODEL_BASE_URL: ${EMBEDDING_MODEL_BASE_URL:-http://host.docker.internal:11435}
+      EMBEDDING_MODEL_TIMEOUT: ${EMBEDDING_MODEL_TIMEOUT:-300s}
+      EMBEDDING_MODEL_MAX_RETRIES: ${EMBEDDING_MODEL_MAX_RETRIES:-2}
+
+      TRANSLATE_MODEL: ${TRANSLATE_MODEL:-translategemma}
+      TRANSLATE_MODEL_BASE_URL: ${TRANSLATE_MODEL_BASE_URL:-http://host.docker.internal:11436}
+      TRANSLATE_MODEL_TIMEOUT: ${TRANSLATE_MODEL_TIMEOUT:-1800s}
+      TRANSLATE_MODEL_MAX_RETRIES: ${TRANSLATE_MODEL_MAX_RETRIES:-2}
+
+      MODEL_RETRY_BACKOFF: ${MODEL_RETRY_BACKOFF:-10s}
+
+      FFMPEG_BIN: ${FFMPEG_BIN:-ffmpeg}
+      YTDLP_BIN: ${YTDLP_BIN:-yt-dlp}
+
+      WHISPER_CPP_BIN: ${WHISPER_CPP_BIN:-/app/deps/whisper.cpp/build/bin/whisper-cli}
+      WHISPER_MODEL_PATH: ${WHISPER_MODEL_PATH:-/app/deps/whisper.cpp/models/ggml-base.bin}
+      TRANSCRIPT_FALLBACK_PATH: ${TRANSCRIPT_FALLBACK_PATH:-}
+
+      ENABLE_TRANSLATION: ${ENABLE_TRANSLATION:-false}
+      ADMIN_SESSION_TTL: ${ADMIN_SESSION_TTL:-72h}
+      ADMIN_COOKIE_NAME: ${ADMIN_COOKIE_NAME:-vtb_admin_session}
+    volumes:
+      - ./data:/app/data
+      - ./artifacts:/app/artifacts
+      - ./deps:/app/deps
+      - ./logs:/app/logs
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

@@ -1,0 +1,14 @@
+.git
+.gitignore
+.DS_Store
+
+artifacts/
+data/
+logs/
+
+node_modules/
+
+*.log
+*.tmp
+
+README.md
