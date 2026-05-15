@@ -335,17 +335,18 @@ func (s *Service) TranslateCompletedBlog(ctx context.Context, jobID, language st
 		return TranslationInfo{}, err
 	}
 
+	jobForEmbedding, embedModel, embedBaseURL := s.resolveEmbeddingConfig(jobForTranslate)
 	embedClient := ollama.NewClientWithRetry(
-		job.EmbeddingModelBaseURL,
+		embedBaseURL,
 		s.Runner.EmbeddingModelTimeout,
 		s.Runner.EmbeddingMaxRetries,
 		s.Runner.ModelRetryBackoff,
 	)
 	embedder := embeddings.OllamaEmbedder{
 		Client: embedClient,
-		Model:  job.EmbeddingModel,
+		Model:  embedModel,
 	}
-	if err := pipeline.GenerateBlogOutputEmbeddings(ctx, s.Store, jobForTranslate, embedder); err != nil {
+	if err := pipeline.GenerateBlogOutputEmbeddings(ctx, s.Store, jobForEmbedding, embedder); err != nil {
 		return TranslationInfo{}, err
 	}
 
