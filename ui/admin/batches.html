@@ -71,6 +71,7 @@
 
           <button id="create_batch" class="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-500">Create And Start Batch</button>
           <p id="create_status" class="text-sm text-slate-600"></p>
+          <div id="title_warning" class="hidden rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900"></div>
         </div>
       </section>
 
@@ -87,7 +88,7 @@
   <script src="/admin/common.js"></script>
   <script>
     document.getElementById('nav').innerHTML = AdminCommon.navHTML('batches');
-    const state = { sections: [], stagedItems: [], channelItems: [], channelSelected: new Set() };
+    const state = { sections: [], stagedItems: [], channelItems: [], channelSelected: new Set(), existingBlogs: [] };
 
     function esc(s) {
       return String(s || '').replace(/[&<>\"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
@@ -99,6 +100,53 @@
       const options = '<option value="">Unsectioned</option>' + state.sections.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
       document.getElementById('item_section').innerHTML = options;
       document.getElementById('channel_section').innerHTML = options;
+    }
+
+    async function loadCatalogTitles() {
+      const out = await AdminCommon.api('/api/admin/catalog');
+      state.existingBlogs = Array.isArray(out.blogs) ? out.blogs : [];
+    }
+
+    function titleKey(title, sectionID) {
+      return `${String(sectionID || '').trim().toLowerCase()}::${String(title || '').trim().toLowerCase()}`;
+    }
+
+    function duplicateWarningsForStagedItems() {
+      const warnings = [];
+      const existing = new Set();
+      for (const b of state.existingBlogs) {
+        if (b && !b.deleted) {
+          existing.add(titleKey(b.title, b.section_id));
+        }
+      }
+      const stagedSeen = new Set();
+      for (let i = 0; i < state.stagedItems.length; i++) {
+        const it = state.stagedItems[i];
+        const t = String(it.title || '').trim();
+        if (!t) continue;
+        const k = titleKey(t, it.section_id);
+        if (existing.has(k)) {
+          warnings.push(`Item #${i + 1}: "${t}" already exists in this section.`);
+        }
+        if (stagedSeen.has(k)) {
+          warnings.push(`Item #${i + 1}: "${t}" is duplicated within this batch for the same section.`);
+        }
+        stagedSeen.add(k);
+      }
+      return warnings;
+    }
+
+    function renderTitleWarnings() {
+      const el = document.getElementById('title_warning');
+      const warnings = duplicateWarningsForStagedItems();
+      if (!warnings.length) {
+        el.classList.add('hidden');
+        el.innerHTML = '';
+        return warnings;
+      }
+      el.classList.remove('hidden');
+      el.innerHTML = `<p class="font-semibold">Title conflict warning</p><ul class="mt-1 list-disc pl-4">${warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul>`;
+      return warnings;
     }
 
     function renderStagedItems() {
@@ -118,6 +166,7 @@
       el.querySelectorAll('button[data-remove]').forEach(btn => btn.onclick = () => {
         state.stagedItems.splice(Number(btn.dataset.remove), 1);
         renderStagedItems();
+        renderTitleWarnings();
       });
     }
 
@@ -267,6 +316,7 @@
       document.getElementById('item_title').value = '';
       document.getElementById('item_main_model').value = '';
       renderStagedItems();
+      renderTitleWarnings();
     };
 
     document.getElementById('fetch_channel').onclick = () => runChannelFetch(false);
@@ -301,6 +351,7 @@
         });
       }
       renderStagedItems();
+      renderTitleWarnings();
       document.getElementById('channel_status').textContent = `Added ${selected.length} videos to batch items.`;
     };
 
@@ -312,6 +363,12 @@
         return;
       }
       try {
+        await loadCatalogTitles();
+        const warnings = renderTitleWarnings();
+        if (warnings.length) {
+          statusEl.textContent = 'Resolve title conflicts before starting this batch.';
+          return;
+        }
         const out = await AdminCommon.api('/api/admin/batches', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -325,6 +382,7 @@
         statusEl.textContent = `Batch created: ${out.batch.id}`;
         state.stagedItems = [];
         renderStagedItems();
+        renderTitleWarnings();
         await loadBatches();
       } catch (err) {
         statusEl.textContent = err.message || String(err);
@@ -336,7 +394,9 @@
     async function boot() {
       await AdminCommon.requireAuth();
       await loadSections();
+      await loadCatalogTitles();
       renderStagedItems();
+      renderTitleWarnings();
       renderChannelItems();
       await loadBatches();
       setInterval(loadBatches, 5000);
