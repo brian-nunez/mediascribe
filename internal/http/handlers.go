@@ -35,6 +35,9 @@ func (h Handler) Routes() http.Handler {
 	mux.HandleFunc("/api/admin/catalog", h.handleAdminCatalog)
 	mux.HandleFunc("/api/admin/blogs/", h.handleAdminBlogSubroutes)
 	mux.HandleFunc("/api/admin/embeddings/rebuild", h.handleAdminEmbeddingsRebuild)
+	mux.HandleFunc("/api/admin/batches", h.handleAdminBatches)
+	mux.HandleFunc("/api/admin/batches/", h.handleAdminBatchByID)
+	mux.HandleFunc("/api/admin/channel/videos", h.handleAdminChannelVideos)
 
 	mux.HandleFunc("/api/search", h.handleSearch)
 	mux.HandleFunc("/api/locales", h.handleLocales)
@@ -77,6 +80,10 @@ func (h Handler) handleUI(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.URL.Path == "/admin/blogs" || r.URL.Path == "/admin/blogs/" {
 		http.ServeFile(w, r, filepath.Join(h.UIRootDir, "admin", "blogs.html"))
+		return
+	}
+	if r.URL.Path == "/admin/batches" || r.URL.Path == "/admin/batches/" {
+		http.ServeFile(w, r, filepath.Join(h.UIRootDir, "admin", "batches.html"))
 		return
 	}
 	if strings.HasPrefix(r.URL.Path, "/admin/blogs/") {
@@ -122,6 +129,96 @@ func (h Handler) handleAdminEmbeddingsRebuild(w http.ResponseWriter, r *http.Req
 	default:
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 	}
+}
+
+func (h Handler) handleAdminBatches(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requireAdmin(w, r); !ok {
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		items, err := h.Jobs.ListBatches(r.Context())
+		if err != nil {
+			handleErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"batches": items})
+	case http.MethodPost:
+		var req jobs.CreateBatchRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
+			return
+		}
+		req.AutoStart = true
+		out, err := h.Jobs.CreateBatch(r.Context(), req)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusCreated, out)
+	default:
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+	}
+}
+
+func (h Handler) handleAdminBatchByID(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requireAdmin(w, r); !ok {
+		return
+	}
+	suffix := strings.TrimPrefix(r.URL.Path, "/api/admin/batches/")
+	parts := strings.Split(strings.Trim(suffix, "/"), "/")
+	if len(parts) == 0 || strings.TrimSpace(parts[0]) == "" {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
+		return
+	}
+	batchID := parts[0]
+	if len(parts) == 1 {
+		if r.Method != http.MethodGet {
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+			return
+		}
+		out, err := h.Jobs.GetBatch(r.Context(), batchID)
+		if err != nil {
+			handleErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, out)
+		return
+	}
+
+	if parts[1] != "start" || r.Method != http.MethodPost {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
+		return
+	}
+	if err := h.Jobs.StartBatch(r.Context(), batchID); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (h Handler) handleAdminChannelVideos(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requireAdmin(w, r); !ok {
+		return
+	}
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	var req struct {
+		URL   string `json:"url"`
+		Limit int    `json:"limit"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
+		return
+	}
+	items, err := h.Jobs.ListChannelVideos(r.Context(), req.URL, req.Limit)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
 func (h Handler) handlePublicFeed(w http.ResponseWriter, r *http.Request) {

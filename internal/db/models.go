@@ -154,3 +154,37 @@ type AdminSession struct {
 	CreatedAt time.Time `json:"created_at"`
 	RevokedAt string    `json:"revoked_at,omitempty"`
 }
+
+type JobBatch struct {
+	ID               string    `json:"id"`
+	Name             string    `json:"name"`
+	DelaySeconds     int       `json:"delay_seconds"`
+	Status           string    `json:"status"`
+	CurrentItemIndex int       `json:"current_item_index"`
+	CurrentJobID     string    `json:"current_job_id,omitempty"`
+	ProcessedItems   int       `json:"processed_items"`
+	TotalItems       int       `json:"total_items"`
+	LastError        string    `json:"last_error,omitempty"`
+	NextRunAt        string    `json:"next_run_at,omitempty"`
+	StartedAt        string    `json:"started_at,omitempty"`
+	CompletedAt      string    `json:"completed_at,omitempty"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+
+type JobBatchItem struct {
+	ID           string    `json:"id"`
+	BatchID      string    `json:"batch_id"`
+	ItemIndex    int       `json:"item_index"`
+	SourceType   string    `json:"source_type"`
+	SourceURL    string    `json:"source_url,omitempty"`
+	SourcePath   string    `json:"source_path,omitempty"`
+	Title        string    `json:"title,omitempty"`
+	SectionID    string    `json:"section_id,omitempty"`
+	MainModel    string    `json:"main_model,omitempty"`
+	JobID        string    `json:"job_id,omitempty"`
+	Status       string    `json:"status"`
+	ErrorMessage string    `json:"error_message,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}

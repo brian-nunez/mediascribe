@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Batches</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-900">
+  <div class="mx-auto max-w-7xl p-6">
+    <div id="nav"></div>
+
+    <div class="mt-6 grid gap-6 lg:grid-cols-2">
+      <section class="rounded-xl border border-slate-200 bg-white p-4">
+        <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Create Batch</h2>
+        <div class="mt-3 grid gap-3">
+          <input id="batch_name" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="Batch name" />
+          <select id="batch_delay" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+            <option value="instant">Instant</option>
+            <option value="30s">30s</option>
+            <option value="1m">1m</option>
+            <option value="2m">2m</option>
+            <option value="3m">3m</option>
+            <option value="5m">5m</option>
+            <option value="10m">10m</option>
+            <option value="15m">15m</option>
+            <option value="30m">30m</option>
+            <option value="1h">1 hour</option>
+          </select>
+
+          <div class="rounded-lg border border-slate-200 p-3">
+            <p class="mb-2 text-xs uppercase tracking-wide text-slate-500">Add Item</p>
+            <div class="grid gap-2">
+              <select id="item_source_type" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+                <option value="url">URL</option>
+                <option value="path">Local Path</option>
+              </select>
+              <input id="item_source" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="https://youtube.com/... or /path/video.mp4" />
+              <input id="item_title" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="Blog title" />
+              <select id="item_section" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"></select>
+              <input id="item_main_model" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="Main model override (optional)" />
+              <button id="add_item" class="rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700">Add To Batch</button>
+            </div>
+          </div>
+
+          <div class="rounded-lg border border-slate-200 p-3">
+            <p class="mb-2 text-xs uppercase tracking-wide text-slate-500">Import From YouTube Channel</p>
+            <div class="grid gap-2">
+              <input id="channel_url" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="https://www.youtube.com/@channel/videos or playlist URL" />
+              <div class="grid gap-2 sm:grid-cols-3">
+                <input id="channel_limit" type="number" min="1" max="500" value="50" class="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                <select id="channel_section" class="rounded-md border border-slate-300 px-3 py-2 text-sm"></select>
+                <input id="channel_main_model" class="rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="Main model override (optional)" />
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <button id="fetch_channel" class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-100">Fetch Videos</button>
+                <button id="retry_fetch_channel" class="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100">Retry Fetch</button>
+                <button id="select_all_channel" class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-100">Select All</button>
+                <button id="clear_channel_selection" class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-100">Clear</button>
+                <button id="add_selected_channel" class="rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700">Add Selected To Batch</button>
+              </div>
+              <p id="channel_status" class="text-xs text-slate-500"></p>
+              <div id="channel_items" class="max-h-64 overflow-y-auto rounded border border-slate-200"></div>
+            </div>
+          </div>
+
+          <div>
+            <p class="mb-2 text-xs uppercase tracking-wide text-slate-500">Batch Items</p>
+            <div id="batch_items" class="max-h-64 overflow-y-auto rounded-lg border border-slate-200 p-2 text-sm"></div>
+          </div>
+
+          <button id="create_batch" class="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-500">Create And Start Batch</button>
+          <p id="create_status" class="text-sm text-slate-600"></p>
+        </div>
+      </section>
+
+      <section class="rounded-xl border border-slate-200 bg-white p-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Batch Runs</h2>
+          <button id="refresh" class="rounded-md border border-slate-300 px-3 py-1 text-xs font-medium hover:bg-slate-100">Refresh</button>
+        </div>
+        <div id="batches" class="mt-3 max-h-[70vh] space-y-3 overflow-y-auto"></div>
+      </section>
+    </div>
+  </div>
+
+  <script src="/admin/common.js"></script>
+  <script>
+    document.getElementById('nav').innerHTML = AdminCommon.navHTML('batches');
+    const state = { sections: [], stagedItems: [], channelItems: [], channelSelected: new Set() };
+
+    function esc(s) {
+      return String(s || '').replace(/[&<>\"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    }
+
+    async function loadSections() {
+      const out = await AdminCommon.api('/api/admin/sections');
+      state.sections = Array.isArray(out.sections) ? out.sections : [];
+      const options = '<option value="">Unsectioned</option>' + state.sections.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
+      document.getElementById('item_section').innerHTML = options;
+      document.getElementById('channel_section').innerHTML = options;
+    }
+
+    function renderStagedItems() {
+      const el = document.getElementById('batch_items');
+      if (!state.stagedItems.length) {
+        el.innerHTML = '<p class="text-slate-500">No items added yet.</p>';
+        return;
+      }
+      el.innerHTML = state.stagedItems.map((it, i) => {
+        const section = state.sections.find(s => s.id === it.section_id);
+        return `<div class="mb-2 rounded border border-slate-200 p-2">
+          <div class="flex items-center justify-between"><strong>${i + 1}. ${esc(it.title || 'Untitled')}</strong><button data-remove="${i}" class="text-xs text-red-600">Remove</button></div>
+          <div class="text-xs text-slate-600">${esc(it.source_type)} · ${esc(it.source_url || it.source_path)}</div>
+          <div class="text-xs text-slate-500">Section: ${esc(section ? section.name : 'Unsectioned')}</div>
+        </div>`;
+      }).join('');
+      el.querySelectorAll('button[data-remove]').forEach(btn => btn.onclick = () => {
+        state.stagedItems.splice(Number(btn.dataset.remove), 1);
+        renderStagedItems();
+      });
+    }
+
+    function renderChannelItems() {
+      const el = document.getElementById('channel_items');
+      if (!state.channelItems.length) {
+        el.innerHTML = '<p class="p-2 text-xs text-slate-500">No channel videos loaded.</p>';
+        return;
+      }
+      el.innerHTML = state.channelItems.map((it, idx) => {
+        const checked = state.channelSelected.has(idx) ? 'checked' : '';
+        return `<label class="flex cursor-pointer items-start gap-2 border-b border-slate-100 px-2 py-2 text-xs">
+          <input type="checkbox" data-idx="${idx}" ${checked} class="mt-0.5 h-4 w-4 rounded border-slate-300" />
+          <span>
+            <span class="block font-medium text-slate-800">${esc(it.title || it.id || 'Untitled')}</span>
+            <span class="block text-slate-500">${esc(it.url)}</span>
+          </span>
+        </label>`;
+      }).join('');
+      el.querySelectorAll('input[type="checkbox"][data-idx]').forEach(cb => {
+        cb.onchange = () => {
+          const idx = Number(cb.dataset.idx);
+          if (cb.checked) state.channelSelected.add(idx); else state.channelSelected.delete(idx);
+        };
+      });
+    }
+
+    async function runChannelFetch(isRetry) {
+      const statusEl = document.getElementById('channel_status');
+      const url = document.getElementById('channel_url').value.trim();
+      const limit = Number(document.getElementById('channel_limit').value || 50);
+      if (!url) {
+        statusEl.textContent = 'Channel URL is required.';
+        return;
+      }
+      statusEl.textContent = isRetry ? 'Retrying fetch...' : 'Fetching videos...';
+      let lastErr = null;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const out = await AdminCommon.api('/api/admin/channel/videos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url, limit }),
+          });
+          state.channelItems = Array.isArray(out.items) ? out.items : [];
+          state.channelSelected = new Set();
+          renderChannelItems();
+          statusEl.textContent = `Loaded ${state.channelItems.length} videos.`;
+          return;
+        } catch (err) {
+          lastErr = err;
+          statusEl.textContent = `Fetch attempt ${attempt}/3 failed...`;
+          await new Promise((resolve) => setTimeout(resolve, attempt * 700));
+        }
+      }
+      statusEl.textContent = (lastErr && (lastErr.message || String(lastErr))) || 'Failed to fetch videos.';
+    }
+
+    function prettyDate(v) {
+      if (!v) return '-';
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return v;
+      return d.toLocaleString();
+    }
+
+    async function loadBatches() {
+      const out = await AdminCommon.api('/api/admin/batches');
+      const jobsOut = await AdminCommon.api('/api/jobs');
+      const jobs = Array.isArray(jobsOut) ? jobsOut : [];
+      const jobsByID = new Map(jobs.map(j => [j.id, j]));
+
+      const list = Array.isArray(out.batches) ? out.batches : [];
+      const wrap = document.getElementById('batches');
+      if (!list.length) {
+        wrap.innerHTML = '<p class="text-sm text-slate-500">No batches yet.</p>';
+        return;
+      }
+
+      const details = await Promise.all(list.map(async (b) => {
+        try {
+          return await AdminCommon.api(`/api/admin/batches/${encodeURIComponent(b.id)}`);
+        } catch (_) {
+          return { batch: b, items: [] };
+        }
+      }));
+
+      wrap.innerHTML = details.map((d) => {
+        const b = d.batch;
+        const items = Array.isArray(d.items) ? d.items : [];
+        const status = String(b.status || '').toLowerCase();
+        let actionHTML = '';
+        if (status === 'queued' || status === 'failed') {
+          actionHTML = `<button data-start="${esc(b.id)}" class="rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-100">Start</button>`;
+        } else if (status === 'running' || status === 'waiting') {
+          actionHTML = `<span class="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">In Progress</span>`;
+        } else if (status === 'complete') {
+          actionHTML = `<span class="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">Completed</span>`;
+        } else {
+          actionHTML = `<span class="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600">${esc(b.status || 'unknown')}</span>`;
+        }
+        return `<div class="rounded-lg border border-slate-200 p-3">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="font-semibold">${esc(b.name)}</p>
+              <p class="text-xs text-slate-500">${esc(b.status)} · delay ${b.delay_seconds}s · ${b.processed_items}/${b.total_items}</p>
+              <p class="text-xs text-slate-500">next: ${esc(prettyDate(b.next_run_at))}</p>
+              ${b.last_error ? `<p class="text-xs text-red-600">${esc(b.last_error)}</p>` : ''}
+            </div>
+            ${actionHTML}
+          </div>
+          <div class="mt-2 max-h-56 overflow-y-auto rounded border border-slate-100">
+            ${items.map(it => {
+              const job = it.job_id ? jobsByID.get(it.job_id) : null;
+              const stage = job?.current_stage ? ` · ${esc(job.current_stage)}` : '';
+              const jobStatus = job?.status ? ` (${esc(job.status)})` : '';
+              return `<div class="border-b border-slate-100 px-2 py-1 text-xs">
+                <span class="font-medium">#${it.item_index + 1}</span> ${esc(it.title || 'Untitled')} · ${esc(it.status)}${jobStatus}${stage}
+                ${it.job_id ? `<span class="text-slate-500"> · ${esc(it.job_id.slice(0, 8))}</span>` : ''}
+                ${it.error_message ? `<div class="text-[11px] text-red-600">${esc(it.error_message)}</div>` : ''}
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`;
+      }).join('');
+
+      wrap.querySelectorAll('button[data-start]').forEach(btn => {
+        btn.onclick = async () => {
+          await AdminCommon.api(`/api/admin/batches/${encodeURIComponent(btn.dataset.start)}/start`, { method: 'POST' });
+          await loadBatches();
+        };
+      });
+    }
+
+    document.getElementById('add_item').onclick = () => {
+      const sourceType = document.getElementById('item_source_type').value;
+      const source = document.getElementById('item_source').value.trim();
+      if (!source) return;
+      state.stagedItems.push({
+        source_type: sourceType,
+        source_url: sourceType === 'url' ? source : '',
+        source_path: sourceType === 'path' ? source : '',
+        title: document.getElementById('item_title').value.trim(),
+        section_id: document.getElementById('item_section').value.trim(),
+        main_model: document.getElementById('item_main_model').value.trim(),
+      });
+      document.getElementById('item_source').value = '';
+      document.getElementById('item_title').value = '';
+      document.getElementById('item_main_model').value = '';
+      renderStagedItems();
+    };
+
+    document.getElementById('fetch_channel').onclick = () => runChannelFetch(false);
+    document.getElementById('retry_fetch_channel').onclick = () => runChannelFetch(true);
+    document.getElementById('select_all_channel').onclick = () => {
+      state.channelSelected = new Set(state.channelItems.map((_, i) => i));
+      renderChannelItems();
+    };
+    document.getElementById('clear_channel_selection').onclick = () => {
+      state.channelSelected = new Set();
+      renderChannelItems();
+    };
+
+    document.getElementById('add_selected_channel').onclick = () => {
+      const sectionID = document.getElementById('channel_section').value.trim();
+      const mainModel = document.getElementById('channel_main_model').value.trim();
+      const selected = Array.from(state.channelSelected.values()).sort((a, b) => a - b);
+      if (!selected.length) {
+        document.getElementById('channel_status').textContent = 'Select at least one video.';
+        return;
+      }
+      for (const idx of selected) {
+        const it = state.channelItems[idx];
+        if (!it || !it.url) continue;
+        state.stagedItems.push({
+          source_type: 'url',
+          source_url: it.url,
+          source_path: '',
+          title: (it.title || '').trim(),
+          section_id: sectionID,
+          main_model: mainModel,
+        });
+      }
+      renderStagedItems();
+      document.getElementById('channel_status').textContent = `Added ${selected.length} videos to batch items.`;
+    };
+
+    document.getElementById('create_batch').onclick = async () => {
+      const statusEl = document.getElementById('create_status');
+      statusEl.textContent = '';
+      if (!state.stagedItems.length) {
+        statusEl.textContent = 'Add at least one item.';
+        return;
+      }
+      try {
+        const out = await AdminCommon.api('/api/admin/batches', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: document.getElementById('batch_name').value.trim() || 'New Batch',
+            delay: document.getElementById('batch_delay').value,
+            items: state.stagedItems,
+            auto_start: true,
+          }),
+        });
+        statusEl.textContent = `Batch created: ${out.batch.id}`;
+        state.stagedItems = [];
+        renderStagedItems();
+        await loadBatches();
+      } catch (err) {
+        statusEl.textContent = err.message || String(err);
+      }
+    };
+
+    document.getElementById('refresh').onclick = loadBatches;
+
+    async function boot() {
+      await AdminCommon.requireAuth();
+      await loadSections();
+      renderStagedItems();
+      renderChannelItems();
+      await loadBatches();
+      setInterval(loadBatches, 5000);
+    }
+    boot();
+  </script>
+</body>
+</html>

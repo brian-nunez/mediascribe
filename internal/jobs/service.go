@@ -37,6 +37,7 @@ type Service struct {
 	running             map[string]struct{}
 	translationActivity map[string]TranslationActivity
 	embeddingRebuild    EmbeddingRebuildStatus
+	runningBatches      map[string]struct{}
 }
 
 type Defaults struct {
@@ -114,6 +115,7 @@ func NewService(store *db.Store, runner pipeline.Runner, mgr artifacts.Manager, 
 		Artifacts:           mgr,
 		defaults:            defaults,
 		running:             map[string]struct{}{},
+		runningBatches:      map[string]struct{}{},
 		translationActivity: map[string]TranslationActivity{},
 	}
 }
@@ -150,6 +152,10 @@ func (s *Service) GetEmbeddingRebuildStatus() EmbeddingRebuildStatus {
 }
 
 func (s *Service) CreateJob(ctx context.Context, req CreateJobRequest) (db.Job, error) {
+	return s.createJob(ctx, req, true)
+}
+
+func (s *Service) createJob(ctx context.Context, req CreateJobRequest, autoStart bool) (db.Job, error) {
 	sourceType := strings.ToLower(strings.TrimSpace(req.SourceType))
 	if sourceType != "url" && sourceType != "path" {
 		return db.Job{}, fmt.Errorf("source_type must be 'url' or 'path'")
@@ -201,7 +207,9 @@ func (s *Service) CreateJob(ctx context.Context, req CreateJobRequest) (db.Job, 
 	if err := s.Store.CreateJob(ctx, job); err != nil {
 		return db.Job{}, err
 	}
-	s.start(job.ID)
+	if autoStart {
+		s.start(job.ID)
+	}
 	return job, nil
 }
 
@@ -295,6 +303,7 @@ func (s *Service) TranslateCompletedBlog(ctx context.Context, jobID, language st
 	if err != nil {
 		return TranslationInfo{}, err
 	}
+	jobForTranslate, translateModel, translateBaseURL := s.resolveTranslationConfig(job)
 
 	finalPath := filepath.Join(job.ArtifactDir, "final.md")
 	raw, err := os.ReadFile(finalPath)
@@ -306,14 +315,14 @@ func (s *Service) TranslateCompletedBlog(ctx context.Context, jobID, language st
 	}
 
 	client := ollama.NewClientWithRetry(
-		job.TranslationModelBaseURL,
+		translateBaseURL,
 		s.Runner.TranslateModelTimeout,
 		s.Runner.TranslateMaxRetries,
 		s.Runner.ModelRetryBackoff,
 	)
 	translator := translation.OllamaTranslator{
 		Client: client,
-		Model:  job.TranslationModel,
+		Model:  translateModel,
 	}
 	translated, err := translator.TranslateMarkdown(ctx, string(raw), lang)
 	if err != nil {
@@ -336,7 +345,7 @@ func (s *Service) TranslateCompletedBlog(ctx context.Context, jobID, language st
 		Client: embedClient,
 		Model:  job.EmbeddingModel,
 	}
-	if err := pipeline.GenerateBlogOutputEmbeddings(ctx, s.Store, job, embedder); err != nil {
+	if err := pipeline.GenerateBlogOutputEmbeddings(ctx, s.Store, jobForTranslate, embedder); err != nil {
 		return TranslationInfo{}, err
 	}
 
@@ -537,17 +546,18 @@ func (s *Service) BackfillOutputEmbeddings(ctx context.Context) error {
 		if _, err := os.Stat(finalPath); err != nil {
 			continue
 		}
+		jobForEmbedding, embedModel, embedBaseURL := s.resolveEmbeddingConfig(job)
 		embedClient := ollama.NewClientWithRetry(
-			job.EmbeddingModelBaseURL,
+			embedBaseURL,
 			s.Runner.EmbeddingModelTimeout,
 			s.Runner.EmbeddingMaxRetries,
 			s.Runner.ModelRetryBackoff,
 		)
 		embedder := embeddings.OllamaEmbedder{
 			Client: embedClient,
-			Model:  job.EmbeddingModel,
+			Model:  embedModel,
 		}
-		if err := pipeline.GenerateBlogOutputEmbeddings(ctx, s.Store, job, embedder); err != nil {
+		if err := pipeline.GenerateBlogOutputEmbeddings(ctx, s.Store, jobForEmbedding, embedder); err != nil {
 			log.Printf("backfill output embeddings for job %s failed: %v", job.ID, err)
 		}
 	}
@@ -567,15 +577,16 @@ func (s *Service) RebuildAllEmbeddingsNow(ctx context.Context) (EmbeddingRebuild
 	chunksRebuilt := 0
 	outputsRebuilt := 0
 	for i, job := range jobs {
+		jobForEmbedding, embedModel, embedBaseURL := s.resolveEmbeddingConfig(job)
 		embedClient := ollama.NewClientWithRetry(
-			job.EmbeddingModelBaseURL,
+			embedBaseURL,
 			s.Runner.EmbeddingModelTimeout,
 			s.Runner.EmbeddingMaxRetries,
 			s.Runner.ModelRetryBackoff,
 		)
 		embedder := embeddings.OllamaEmbedder{
 			Client: embedClient,
-			Model:  job.EmbeddingModel,
+			Model:  embedModel,
 		}
 
 		chunks, err := s.Store.ListTranscriptChunks(ctx, job.ID)
@@ -593,8 +604,8 @@ func (s *Service) RebuildAllEmbeddingsNow(ctx context.Context) (EmbeddingRebuild
 					ChunkID:               chunk.ID,
 					Embedding:             embeddings.Float32ToBytes(vector),
 					EmbeddingDimensions:   len(vector),
-					EmbeddingModel:        job.EmbeddingModel,
-					EmbeddingModelBaseURL: job.EmbeddingModelBaseURL,
+					EmbeddingModel:        embedModel,
+					EmbeddingModelBaseURL: embedBaseURL,
 					CreatedAt:             now,
 				})
 			}
@@ -604,7 +615,7 @@ func (s *Service) RebuildAllEmbeddingsNow(ctx context.Context) (EmbeddingRebuild
 			chunksRebuilt += len(records)
 		}
 
-		if err := pipeline.GenerateBlogOutputEmbeddings(ctx, s.Store, job, embedder); err == nil {
+		if err := pipeline.GenerateBlogOutputEmbeddings(ctx, s.Store, jobForEmbedding, embedder); err == nil {
 			outputsRebuilt++
 		}
 
@@ -655,15 +666,16 @@ func (s *Service) rebuildAllEmbeddingsWorker() {
 	outputsRebuilt := 0
 
 	for i, job := range jobs {
+		jobForEmbedding, embedModel, embedBaseURL := s.resolveEmbeddingConfig(job)
 		embedClient := ollama.NewClientWithRetry(
-			job.EmbeddingModelBaseURL,
+			embedBaseURL,
 			s.Runner.EmbeddingModelTimeout,
 			s.Runner.EmbeddingMaxRetries,
 			s.Runner.ModelRetryBackoff,
 		)
 		embedder := embeddings.OllamaEmbedder{
 			Client: embedClient,
-			Model:  job.EmbeddingModel,
+			Model:  embedModel,
 		}
 
 		chunks, err := s.Store.ListTranscriptChunks(ctx, job.ID)
@@ -682,8 +694,8 @@ func (s *Service) rebuildAllEmbeddingsWorker() {
 					ChunkID:               chunk.ID,
 					Embedding:             embeddings.Float32ToBytes(vector),
 					EmbeddingDimensions:   len(vector),
-					EmbeddingModel:        job.EmbeddingModel,
-					EmbeddingModelBaseURL: job.EmbeddingModelBaseURL,
+					EmbeddingModel:        embedModel,
+					EmbeddingModelBaseURL: embedBaseURL,
 					CreatedAt:             now,
 				})
 			}
@@ -694,7 +706,7 @@ func (s *Service) rebuildAllEmbeddingsWorker() {
 			chunksRebuilt += len(records)
 		}
 
-		if err := pipeline.GenerateBlogOutputEmbeddings(ctx, s.Store, job, embedder); err == nil {
+		if err := pipeline.GenerateBlogOutputEmbeddings(ctx, s.Store, jobForEmbedding, embedder); err == nil {
 			outputsRebuilt++
 		}
 
@@ -763,6 +775,34 @@ func sanitizeLang(value string) string {
 		return "translated"
 	}
 	return clean
+}
+
+func (s *Service) resolveEmbeddingConfig(job db.Job) (db.Job, string, string) {
+	model := strings.TrimSpace(s.defaults.EmbeddingModel)
+	if model == "" {
+		model = strings.TrimSpace(job.EmbeddingModel)
+	}
+	baseURL := strings.TrimSpace(s.defaults.EmbeddingModelBaseURL)
+	if baseURL == "" {
+		baseURL = strings.TrimSpace(job.EmbeddingModelBaseURL)
+	}
+	job.EmbeddingModel = model
+	job.EmbeddingModelBaseURL = baseURL
+	return job, model, baseURL
+}
+
+func (s *Service) resolveTranslationConfig(job db.Job) (db.Job, string, string) {
+	model := strings.TrimSpace(s.defaults.TranslationModel)
+	if model == "" {
+		model = strings.TrimSpace(job.TranslationModel)
+	}
+	baseURL := strings.TrimSpace(s.defaults.TranslationModelBaseURL)
+	if baseURL == "" {
+		baseURL = strings.TrimSpace(job.TranslationModelBaseURL)
+	}
+	job.TranslationModel = model
+	job.TranslationModelBaseURL = baseURL
+	return job, model, baseURL
 }
 
 func cosineSimilarity(a, b []float32) float64 {

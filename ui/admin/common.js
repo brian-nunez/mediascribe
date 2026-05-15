@@ -66,6 +66,7 @@ const AdminCommon = (() => {
         </div>
         <nav class="mt-3 flex flex-wrap gap-2">
           ${item('/admin', 'Dashboard', 'dashboard')}
+          ${item('/admin/batches', 'Batches', 'batches')}
           ${item('/admin/sections', 'Sections', 'sections')}
           ${item('/admin/blogs', 'Blogs', 'blogs')}
         </nav>
