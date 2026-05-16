@@ -55,9 +55,6 @@ func (s *Service) SearchPublicBlogs(ctx context.Context, query string, limit int
 	rowByJob := make(map[string]PublicBlogSummary, len(rows))
 	for _, row := range rows {
 		preview, langs := row.PreviewText, parseLanguagesJSON(row.LanguagesJSON)
-		if strings.TrimSpace(preview) == "" || len(langs) == 0 {
-			preview, langs = blogPreviewAndLanguages(row.ArtifactDir)
-		}
 		name := row.SectionName
 		if strings.TrimSpace(name) == "" {
 			name = "Unsectioned"

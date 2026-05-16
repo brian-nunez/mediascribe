@@ -85,9 +85,6 @@ type PublicFeedPage struct {
 }
 
 func (s *Service) ListPublicCatalog(ctx context.Context) (PublicCatalog, error) {
-	if err := s.ensureCatalogForReadyJobs(ctx); err != nil {
-		return PublicCatalog{}, err
-	}
 	sections, blogs, err := s.listCatalogViews(ctx, false, false)
 	if err != nil {
 		return PublicCatalog{}, err
@@ -99,9 +96,6 @@ func (s *Service) ListPublicCatalog(ctx context.Context) (PublicCatalog, error) 
 }
 
 func (s *Service) ListPublicFeedPage(ctx context.Context, sectionID string, limit, offset int) (PublicFeedPage, error) {
-	if err := s.ensureCatalogForReadyJobs(ctx); err != nil {
-		return PublicFeedPage{}, err
-	}
 	if limit <= 0 {
 		limit = 20
 	}
@@ -149,9 +143,6 @@ func (s *Service) ListPublicFeedPage(ctx context.Context, sectionID string, limi
 	items := make([]PublicBlogSummary, 0, len(rows))
 	for _, row := range rows {
 		preview, langs := row.PreviewText, parseLanguagesJSON(row.LanguagesJSON)
-		if strings.TrimSpace(preview) == "" || len(langs) == 0 {
-			preview, langs = blogPreviewAndLanguages(row.ArtifactDir)
-		}
 		sectionName := row.SectionName
 		if strings.TrimSpace(sectionName) == "" {
 			sectionName = "Unsectioned"
