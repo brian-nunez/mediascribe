@@ -99,6 +99,7 @@
         `;
 
         const articleEl = document.getElementById('article');
+        let mathRetries = 0;
         const initMath = () => {
           if (articleEl && typeof renderMathInElement === 'function') {
             renderMathInElement(articleEl, {
@@ -112,8 +113,8 @@
               ],
               ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
             });
-          } else if (articleEl) {
-            // Retry once if scripts haven't finished loading
+          } else if (articleEl && mathRetries < 20) {
+            mathRetries++;
             setTimeout(initMath, 100);
           }
         };
@@ -168,7 +169,7 @@
       }
     }
 
-    function boot() {
+    async function boot() {
       if ('serviceWorker' in navigator) {
         try { await navigator.serviceWorker.register('/sw.js'); } catch (_) {}
       }
@@ -181,7 +182,6 @@
         if (toUrl.pathname === '/' || toUrl.pathname === '/index.html') {
           // Names should already be set via CSS for body[data-page="blog"], 
           // but we can ensure they are explicitly active if needed.
-          // In this case, CSS takes care of it because it's the blog page.
         }
       });
 
