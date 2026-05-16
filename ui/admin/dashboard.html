@@ -237,12 +237,11 @@
     async function boot() {
       const user = await AdminCommon.requireAuth();
       if (!user) return;
-      const data = await AdminCommon.loadAdminCatalog();
-      const blogs = Array.isArray(data.blogs) ? data.blogs : [];
-      const sections = Array.isArray(data.sections) ? data.sections : [];
-      document.getElementById('blogs_count').textContent = String(blogs.length);
-      document.getElementById('sections_count').textContent = String(sections.length);
-      document.getElementById('published_count').textContent = String(blogs.filter(b => b.published).length);
+      const statsOut = await AdminCommon.api('/api/admin/stats');
+      const stats = statsOut.stats || {};
+      document.getElementById('blogs_count').textContent = String(stats.blogs_count || 0);
+      document.getElementById('sections_count').textContent = String(stats.sections_count || 0);
+      document.getElementById('published_count').textContent = String(stats.published_count || 0);
       const jobs = await loadJobs();
       renderJobsList(jobs);
       await loadEmbeddingStatus();

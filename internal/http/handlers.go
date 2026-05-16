@@ -33,6 +33,7 @@ func (h Handler) Routes() http.Handler {
 	mux.HandleFunc("/api/admin/sections", h.handleAdminSections)
 	mux.HandleFunc("/api/admin/sections/", h.handleAdminSectionByID)
 	mux.HandleFunc("/api/admin/catalog", h.handleAdminCatalog)
+	mux.HandleFunc("/api/admin/stats", h.handleAdminStats)
 	mux.HandleFunc("/api/admin/blogs/", h.handleAdminBlogSubroutes)
 	mux.HandleFunc("/api/admin/embeddings/rebuild", h.handleAdminEmbeddingsRebuild)
 	mux.HandleFunc("/api/admin/artifacts/sync", h.handleAdminArtifactSync)
@@ -436,6 +437,22 @@ func (h Handler) handleAdminCatalog(w http.ResponseWriter, r *http.Request) {
 		"unsectioned": catalog.Unsectioned,
 		"blogs":       allBlogs,
 	})
+}
+
+func (h Handler) handleAdminStats(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requireAdmin(w, r); !ok {
+		return
+	}
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	stats, err := h.Jobs.AdminStats(r.Context())
+	if err != nil {
+		handleErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"stats": stats})
 }
 
 func (h Handler) handleAdminBlogSubroutes(w http.ResponseWriter, r *http.Request) {
