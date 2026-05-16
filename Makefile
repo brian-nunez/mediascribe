@@ -1,6 +1,8 @@
 SHELL := /bin/zsh
 
 GO ?= go
+TEMPL ?= go run github.com/a-h/templ/cmd/templ@v0.3.924
+TAILWIND ?= tailwindcss
 
 APP_ENV_VARS := HTTP_ADDR SQLITE_PATH ARTIFACT_ROOT \
 	MAIN_MODEL MAIN_MODEL_BASE_URL MAIN_MODEL_TIMEOUT MAIN_MODEL_MAX_RETRIES \
@@ -9,7 +11,9 @@ APP_ENV_VARS := HTTP_ADDR SQLITE_PATH ARTIFACT_ROOT \
 	MODEL_RETRY_BACKOFF \
 	FFMPEG_BIN WHISPER_CPP_BIN WHISPER_MODEL_PATH YTDLP_BIN \
 	TRANSCRIPT_FALLBACK_PATH ENABLE_TRANSLATION \
-	ADMIN_SESSION_TTL ADMIN_COOKIE_NAME
+	ADMIN_SESSION_TTL ADMIN_COOKIE_NAME \
+	OTEL_ENABLED OTEL_SERVICE_NAME OTEL_SERVICE_VERSION OTEL_ENVIRONMENT \
+	OTEL_EXPORTER_OTLP_ENDPOINT OTEL_EXPORTER_OTLP_INSECURE OTEL_FAIL_FAST
 
 UNSET_FLAGS := $(foreach v,$(APP_ENV_VARS),-u $(v))
 
@@ -17,6 +21,15 @@ UNSET_FLAGS := $(foreach v,$(APP_ENV_VARS),-u $(v))
 export HTTP_ADDR ?= :8080
 export SQLITE_PATH ?= ./data/app.db
 export ARTIFACT_ROOT ?= ./artifacts/jobs
+
+# OpenTelemetry defaults from the Go/Echo/templ template
+export OTEL_ENABLED ?= false
+export OTEL_SERVICE_NAME ?= video-to-blog-page
+export OTEL_SERVICE_VERSION ?=
+export OTEL_ENVIRONMENT ?= development
+export OTEL_EXPORTER_OTLP_ENDPOINT ?= localhost:4317
+export OTEL_EXPORTER_OTLP_INSECURE ?= true
+export OTEL_FAIL_FAST ?= false
 
 # Main reasoning/writing model
 export MAIN_MODEL ?= gpt-oss:20b
@@ -52,11 +65,36 @@ export ENABLE_TRANSLATION ?= false
 export ADMIN_SESSION_TTL ?= 72h
 export ADMIN_COOKIE_NAME ?= vtb_admin_session
 
-.PHONY: run run-fresh build tidy clean env env-fresh unset-env deps-whisper admin-create \
-	docker-build docker-build-multiarch docker-build-amd64 docker-push-amd64 docker-up docker-down docker-logs docker-rebuild-embeddings docker-verify-deps
-
 DOCKER_IMAGE ?= mediascribe
 DOCKER_TAG ?= latest
+
+.PHONY: templ templ-generate tailwind tailwind-build server dev run run-fresh build tidy clean env env-fresh unset-env deps-whisper admin-create \
+	docker-build docker-build-multiarch docker-build-amd64 docker-push-amd64 docker-up docker-down docker-logs docker-rebuild-embeddings docker-verify-deps
+
+templ:
+	$(TEMPL) generate --watch --proxy="http://localhost:8080" --open-browser=false
+
+templ-generate:
+	$(TEMPL) generate
+
+tailwind:
+	$(TAILWIND) -i ./assets/css/input.css -o ./assets/css/output.css --watch
+
+tailwind-build:
+	$(TAILWIND) -i ./assets/css/input.css -o ./assets/css/output.css --minify
+
+server:
+	air \
+		--build.cmd "go build -o tmp/bin/main ./cmd/main.go" \
+		--build.bin "tmp/bin/main" \
+		--build.delay "100" \
+		--build.exclude_dir "node_modules,tmp,deps,data,artifacts" \
+		--build.include_ext "go,templ" \
+		--build.stop_on_error "false" \
+		--misc.clean_on_exit true
+
+dev:
+	make -j3 templ tailwind server
 
 deps-whisper:
 	@set -euo pipefail; \
@@ -81,10 +119,10 @@ deps-whisper:
 	$$CMAKE_BIN --build deps/whisper.cpp/build -j; \
 	bash deps/whisper.cpp/models/download-ggml-model.sh base
 
-run:
+run: templ-generate tailwind-build
 	@test -x "$(WHISPER_CPP_BIN)" || (echo "Missing local whisper binary: $(WHISPER_CPP_BIN). Run: make deps-whisper" && exit 1)
 	@test -f "$(WHISPER_MODEL_PATH)" || (echo "Missing local whisper model: $(WHISPER_MODEL_PATH). Run: make deps-whisper" && exit 1)
-	$(GO) run ./cmd/server
+	$(GO) run ./cmd
 
 admin-create:
 	@test -n "$(USER)" || (echo "Usage: make admin-create USER=admin PASS='strong-password'" && exit 1)
@@ -94,7 +132,7 @@ admin-create:
 run-fresh:
 	@env $(UNSET_FLAGS) PATH="$$PATH" HOME="$$HOME" $(MAKE) --no-print-directory run
 
-build:
+build: templ-generate tailwind-build
 	$(GO) build ./...
 
 tidy:
@@ -107,6 +145,13 @@ env:
 	@echo "HTTP_ADDR=$(HTTP_ADDR)"
 	@echo "SQLITE_PATH=$(SQLITE_PATH)"
 	@echo "ARTIFACT_ROOT=$(ARTIFACT_ROOT)"
+	@echo "OTEL_ENABLED=$(OTEL_ENABLED)"
+	@echo "OTEL_SERVICE_NAME=$(OTEL_SERVICE_NAME)"
+	@echo "OTEL_SERVICE_VERSION=$(OTEL_SERVICE_VERSION)"
+	@echo "OTEL_ENVIRONMENT=$(OTEL_ENVIRONMENT)"
+	@echo "OTEL_EXPORTER_OTLP_ENDPOINT=$(OTEL_EXPORTER_OTLP_ENDPOINT)"
+	@echo "OTEL_EXPORTER_OTLP_INSECURE=$(OTEL_EXPORTER_OTLP_INSECURE)"
+	@echo "OTEL_FAIL_FAST=$(OTEL_FAIL_FAST)"
 	@echo "MAIN_MODEL=$(MAIN_MODEL)"
 	@echo "MAIN_MODEL_BASE_URL=$(MAIN_MODEL_BASE_URL)"
 	@echo "MAIN_MODEL_TIMEOUT=$(MAIN_MODEL_TIMEOUT)"

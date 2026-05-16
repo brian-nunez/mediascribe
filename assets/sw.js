@@ -1,11 +1,17 @@
-const CACHE_NAME = 'mediascribe-v1';
+const CACHE_NAME = 'mediascribe-v2';
 const STATIC_ASSETS = [
   '/',
-  '/index.html',
-  '/blog.html',
+  '/blog',
   '/admin',
   '/admin/login',
+  '/admin/sections',
+  '/admin/blogs',
+  '/admin/batches',
   '/manifest.webmanifest',
+  '/assets/css/output.css',
+  '/assets/js/public-feed.js',
+  '/assets/js/blog-page.js',
+  '/assets/js/admin/common.js',
   '/icons/icon-192.svg',
   '/icons/icon-512.svg'
 ];
@@ -29,15 +35,9 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
 
   if (req.method !== 'GET') return;
-
   if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith('/api/')) return;
 
-  // Always network for API calls.
-  if (url.pathname.startsWith('/api/')) {
-    return;
-  }
-
-  // Network-first for navigations; fallback to cache.
   if (req.mode === 'navigate') {
     event.respondWith(
       fetch(req)
@@ -51,7 +51,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Stale-while-revalidate for static assets.
   event.respondWith(
     caches.match(req).then((cached) => {
       const networkFetch = fetch(req)

@@ -1,29 +1,3 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#111111" />
-  <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml" />
-  <title>Admin Blogs</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-slate-100 text-slate-900">
-  <main class="mx-auto w-[95%] max-w-7xl py-6">
-    <div id="nav"></div>
-
-    <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div class="mb-3 flex items-center justify-between gap-2">
-        <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Blogs</h2>
-        <button id="refresh_btn" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Refresh</button>
-      </div>
-      <div id="groups" class="space-y-4"></div>
-    </section>
-  </main>
-
-  <script src="/admin/common.js"></script>
-  <script>
     document.getElementById('nav').innerHTML = AdminCommon.navHTML('blogs');
     document.getElementById('logout_btn').onclick = AdminCommon.logout;
 
@@ -120,6 +94,3 @@
 
     document.getElementById('refresh_btn').onclick = render;
     render();
-  </script>
-</body>
-</html>

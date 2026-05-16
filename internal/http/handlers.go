@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -17,9 +16,8 @@ import (
 )
 
 type Handler struct {
-	Jobs      *jobs.Service
-	Auth      auth.Service
-	UIRootDir string
+	Jobs *jobs.Service
+	Auth auth.Service
 }
 
 func (h Handler) Routes() http.Handler {
@@ -45,7 +43,7 @@ func (h Handler) Routes() http.Handler {
 	mux.HandleFunc("/api/locales", h.handleLocales)
 	mux.HandleFunc("/api/jobs", h.handleJobs)
 	mux.HandleFunc("/api/jobs/", h.handleJobSubroutes)
-	mux.HandleFunc("/", h.handleUI)
+	mux.HandleFunc("/", h.handleAPINotFound)
 	return mux
 }
 
@@ -59,44 +57,8 @@ func (h Handler) handleLocales(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h Handler) handleUI(w http.ResponseWriter, r *http.Request) {
-	if strings.HasPrefix(r.URL.Path, "/api/") {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
-		return
-	}
-	if r.URL.Path == "/" {
-		http.ServeFile(w, r, filepath.Join(h.UIRootDir, "index.html"))
-		return
-	}
-	if r.URL.Path == "/admin" || r.URL.Path == "/admin/" {
-		http.ServeFile(w, r, filepath.Join(h.UIRootDir, "admin", "dashboard.html"))
-		return
-	}
-	if r.URL.Path == "/admin/login" || r.URL.Path == "/admin/login/" {
-		http.ServeFile(w, r, filepath.Join(h.UIRootDir, "admin", "login.html"))
-		return
-	}
-	if r.URL.Path == "/admin/sections" || r.URL.Path == "/admin/sections/" {
-		http.ServeFile(w, r, filepath.Join(h.UIRootDir, "admin", "sections.html"))
-		return
-	}
-	if r.URL.Path == "/admin/blogs" || r.URL.Path == "/admin/blogs/" {
-		http.ServeFile(w, r, filepath.Join(h.UIRootDir, "admin", "blogs.html"))
-		return
-	}
-	if r.URL.Path == "/admin/batches" || r.URL.Path == "/admin/batches/" {
-		http.ServeFile(w, r, filepath.Join(h.UIRootDir, "admin", "batches.html"))
-		return
-	}
-	if strings.HasPrefix(r.URL.Path, "/admin/blogs/") {
-		http.ServeFile(w, r, filepath.Join(h.UIRootDir, "admin", "blog-edit.html"))
-		return
-	}
-	if r.URL.Path == "/blog" || r.URL.Path == "/blog/" || strings.HasPrefix(r.URL.Path, "/blog/") {
-		http.ServeFile(w, r, filepath.Join(h.UIRootDir, "blog.html"))
-		return
-	}
-	http.FileServer(http.Dir(h.UIRootDir)).ServeHTTP(w, r)
+func (h Handler) handleAPINotFound(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
 }
 
 func (h Handler) handlePublicCatalog(w http.ResponseWriter, r *http.Request) {

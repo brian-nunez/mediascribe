@@ -1,10 +1,11 @@
 # Local Technical Video-to-Blog System
 
-Local-first technical video analysis pipeline using Go, SQLite, local artifacts, and Ollama-hosted models.
+Local-first technical video analysis pipeline using Go, Echo, templ, TailwindCSS, SQLite, local artifacts, and Ollama-hosted models.
 
 ## Features
 
-- Single binary (`go run ./cmd/server`) for API + UI
+- Echo server with templ-rendered SSR pages and compiled Tailwind assets
+- Single binary (`go run ./cmd`) for API + UI
 - Public read-only landing page (`/`) for sections, transcripts, and multilingual blogs
 - Authenticated admin page (`/admin`) for:
   - creating/editing/deleting sections
@@ -50,12 +51,16 @@ export WHISPER_MODEL_PATH=./deps/whisper.cpp/models/ggml-base.bin
 
 export ADMIN_SESSION_TTL=72h
 export ADMIN_COOKIE_NAME=vtb_admin_session
+
+export OTEL_ENABLED=false
+export OTEL_EXPORTER_OTLP_ENDPOINT=localhost:4317
 ```
 
 2. Run:
 
 ```bash
-go run ./cmd/server
+make build
+go run ./cmd
 ```
 
 Or use the Makefile defaults:
@@ -65,13 +70,19 @@ make deps-whisper
 make run
 ```
 
-4. Create the first admin user (one-time):
+For live development with templ, Tailwind, and Air watchers:
+
+```bash
+make dev
+```
+
+3. Create the first admin user (one-time):
 
 ```bash
 make admin-create USER=admin PASS='change-this-password'
 ```
 
-5. Open:
+4. Open:
 
 - Public landing page: http://localhost:8080
 - Admin page: http://localhost:8080/admin
@@ -109,6 +120,9 @@ make admin-create USER=admin PASS='change-this-password'
 
 ## Notes
 
+- SSR pages live in `views/pages`; generated templ Go files are committed so Docker builds do not need the templ CLI at runtime.
+- Browser assets live in `assets`; Tailwind input/output live in `assets/css`.
+- OpenTelemetry middleware is wired in and can be enabled with `OTEL_ENABLED=true`.
 - No self-registration endpoint is provided. Admin users can only be created via CLI.
 - URL downloads use `yt-dlp` (`YTDLP_BIN`, default `yt-dlp`) when `source_type=url`.
 - Transcription uses `whisper-cli`; if unavailable, fallback transcript file can be used via `TRANSCRIPT_FALLBACK_PATH`.

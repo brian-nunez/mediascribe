@@ -1,185 +1,3 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#111111" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="MediaScribe" />
-  <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
-  <title>MediaScribe | Blog</title>
-  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
-  <script type="module">
-    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
-    window.__mermaid = mermaid;
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: 'neutral',
-      securityLevel: 'loose',
-    });
-  </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet"/>
-  <style>
-    :root {
-      --bg: #f9f9f9;
-      --surface: #ffffff;
-      --line: #dfe4dd;
-      --text: #1a1c1c;
-      --muted: #5f5e5e;
-      --primary: #111111;
-    }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-      -webkit-font-smoothing: antialiased;
-    }
-    .brand, .headline { font-family: Newsreader, Georgia, serif; }
-    #article h1, #article h2, #article h3, #article h4 {
-      margin-top: 1.2rem;
-      margin-bottom: 0.5rem;
-      line-height: 1.2;
-      font-family: Newsreader, Georgia, serif;
-      font-weight: 700;
-      color: #111827;
-    }
-    #article h1 { font-size: 1.85rem; }
-    #article h2 { font-size: 1.45rem; }
-    #article h3 { font-size: 1.2rem; }
-    #article p {
-      margin: 0.8rem 0;
-      line-height: 1.9;
-      color: #1f2937;
-      font-size: 1.12rem;
-      white-space: pre-wrap;
-    }
-    #article pre {
-      margin: 1rem 0;
-      border-radius: 0.5rem;
-      background: #111827;
-      color: #e5e7eb;
-      padding: 0.9rem;
-      overflow: auto;
-      font-size: 0.86rem;
-    }
-    #article table {
-      display: block;
-      width: 100%;
-      max-width: 100%;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      border-collapse: collapse;
-      margin: 1rem 0;
-      white-space: normal;
-    }
-    #article thead, #article tbody, #article tr {
-      width: 100%;
-    }
-    #article th, #article td {
-      min-width: 140px;
-      border: 1px solid var(--line);
-      padding: 0.55rem 0.65rem;
-      vertical-align: top;
-      word-break: break-word;
-      overflow-wrap: anywhere;
-    }
-    #article th {
-      background: #f3f4f6;
-      font-weight: 700;
-    }
-    #article img, #article iframe, #article video {
-      max-width: 100%;
-      height: auto;
-    }
-    #article * {
-      max-width: 100%;
-      box-sizing: border-box;
-    }
-    #article code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size: 0.86em;
-    }
-    #article blockquote {
-      margin: 1rem 0;
-      border-left: 4px solid var(--primary);
-      padding-left: 1rem;
-      font-style: italic;
-      color: #374151;
-    }
-    #article .katex-display {
-      overflow-x: auto;
-      overflow-y: hidden;
-      padding: 0.25rem 0;
-      margin: 1rem 0;
-      -webkit-overflow-scrolling: touch;
-    }
-    #article .katex {
-      font-size: 1em;
-    }
-    #article .mermaid {
-      max-width: 100%;
-      overflow-x: auto;
-      overflow-y: hidden;
-      padding: 0.5rem 0;
-      -webkit-overflow-scrolling: touch;
-    }
-    #article .mermaid-fallback {
-      margin: 1rem 0;
-      border: 1px solid #fecaca;
-      background: #fff7f7;
-      border-radius: 0.5rem;
-      overflow: hidden;
-    }
-    #article .mermaid-fallback-head {
-      padding: 0.5rem 0.75rem;
-      font-size: 0.75rem;
-      font-weight: 700;
-      color: #991b1b;
-      background: #fee2e2;
-      border-bottom: 1px solid #fecaca;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    #article .mermaid-fallback pre {
-      margin: 0;
-      border-radius: 0;
-      background: #fff;
-      color: #111827;
-      max-height: 320px;
-    }
-  </style>
-</head>
-<body>
-  <header class="sticky top-0 z-40 border-b border-[var(--line)] bg-[var(--surface)]">
-    <div class="mx-auto flex h-16 w-full max-w-[760px] items-center justify-between px-5">
-      <a href="/" class="brand text-4xl font-black tracking-tight text-[var(--primary)]">MediaScribe</a>
-      <a href="/" class="rounded-full border border-[var(--line)] px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Back to Feed</a>
-    </div>
-  </header>
-
-  <main class="mx-auto max-w-[760px] px-5 py-12">
-    <article id="content" class="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8">
-      <p class="text-sm text-slate-500">Loading blog…</p>
-    </article>
-  </main>
-
-  <footer class="mt-10 border-t border-[var(--line)] bg-white">
-    <div class="mx-auto flex max-w-[760px] flex-col items-center gap-3 px-5 py-8 text-center">
-      <h3 class="brand text-3xl font-semibold text-slate-500/70">MediaScribe</h3>
-      <p class="text-sm text-slate-600">MediaScribe, written from video and developed by Brian Nunez · <a class="text-[var(--primary)] underline" href="https://github.com/brian-nunez" target="_blank" rel="noopener noreferrer">github.com/brian-nunez</a></p>
-    </div>
-  </footer>
-
-  <script>
     marked.setOptions({ gfm: true, breaks: true });
 
     const contentEl = document.getElementById('content');
@@ -218,6 +36,13 @@
 
     function languageList(blog) {
       return Array.isArray(blog.languages) ? blog.languages : [];
+    }
+
+    function readInitialBlog() {
+      const el = document.getElementById('initial-blog-data');
+      if (!el || !el.textContent) return null;
+      try { return JSON.parse(el.textContent); }
+      catch (_) { return null; }
     }
 
     async function loadBlog(id) {
@@ -348,7 +173,10 @@
       }
 
       try {
-        const blog = await loadBlog(id);
+        const initial = readInitialBlog();
+        const blog = initial && initial.found && initial.blog && initial.blog.id === id
+          ? initial.blog
+          : await loadBlog(id);
         if (!blog) {
           contentEl.innerHTML = '<p class="text-sm text-red-700">Blog not found.</p>';
           return;
@@ -360,6 +188,3 @@
     }
 
     boot();
-  </script>
-</body>
-</html>

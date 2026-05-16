@@ -1,97 +1,3 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#111111" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="MediaScribe" />
-  <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
-  <title>MediaScribe | Editorial Feed</title>
-  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600;6..72,700;6..72,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-  <style>
-    :root {
-      --bg: #f9f9f9;
-      --surface: #ffffff;
-      --line: #dfe4dd;
-      --text: #1a1c1c;
-      --muted: #5f5e5e;
-      --primary: #111111;
-      --primary-soft: #f2f2f2;
-    }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-      -webkit-font-smoothing: antialiased;
-    }
-    .brand { font-family: Newsreader, Georgia, serif; }
-    mark { background: #fde68a; border-radius: 2px; padding: 0 2px; }
-  </style>
-</head>
-<body class="overflow-x-hidden">
-  <header class="fixed top-0 left-0 right-0 z-50 bg-[var(--surface)] border-b border-[var(--line)]">
-      <div class="mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between px-5">
-        <div class="flex items-center gap-3">
-          <button id="menu_btn" class="rounded-full p-2 text-[var(--primary)] hover:bg-[var(--primary-soft)]" type="button" aria-label="Toggle navigation">☰</button>
-          <a href="/" class="brand text-4xl font-black tracking-tight text-[var(--primary)]">MediaScribe</a>
-        </div>
-        <div></div>
-      </div>
-    </header>
-
-  <div id="mobile_backdrop" class="fixed inset-0 z-40 hidden bg-black/35 md:hidden"></div>
-
-  <div class="mx-auto flex max-w-[1200px] pt-16">
-    <aside id="left_nav" class="fixed left-0 top-16 z-50 flex h-[calc(100vh-64px)] w-[280px] -translate-x-full flex-col overflow-y-auto border-r border-[var(--line)] bg-white p-6 transition-transform duration-200 md:sticky md:top-16 md:z-auto md:translate-x-0">
-      <h2 class="brand text-3xl font-bold text-[var(--primary)]">Sections</h2>
-      <div class="mt-3 rounded-lg border border-[var(--line)] bg-slate-50 px-3 py-2">
-        <input id="section_search" class="w-full border-0 bg-transparent p-0 text-sm text-slate-700 placeholder:text-slate-500 focus:ring-0" placeholder="Filter sections" />
-      </div>
-      <div id="section_list" class="mt-3 space-y-1"></div>
-
-      <div class="mt-5 border-t border-[var(--line)] pt-4">
-        <h3 class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Language</h3>
-        <div id="language_list" class="mt-2 space-y-1"></div>
-      </div>
-
-      <div class="mt-auto border-t border-[var(--line)] pt-4">
-        <p class="text-sm text-[var(--muted)]">Editorial note: each article is produced with AI from source videos, then refined to remove filler language and expand the technical depth, structure, and implementation clarity.</p>
-      </div>
-    </aside>
-
-    <main class="w-full max-w-[760px] flex-1 px-5 py-6">
-      <div class="relative">
-        <div class="flex items-center rounded-full border border-[var(--line)] bg-[var(--surface)] px-4 py-2.5">
-          <span class="mr-2 text-sm text-slate-500">⌕</span>
-          <input id="search_input" class="w-full border-0 bg-transparent p-0 text-base text-slate-800 placeholder:text-slate-500 focus:ring-0" placeholder="Search technical topics and concepts" />
-        </div>
-        <div id="search_dropdown" class="absolute left-0 right-0 top-12 z-50 hidden max-h-[360px] overflow-auto rounded-xl border border-[var(--line)] bg-white p-2 shadow-xl"></div>
-      </div>
-
-      <section class="mt-7">
-        <h1 class="brand text-5xl font-bold leading-tight text-slate-900">Technical Blog Feed</h1>
-        <p id="feed_meta" class="mt-2 text-sm text-slate-500">Loading…</p>
-      </section>
-
-      <section id="feed" class="mt-6 divide-y divide-[var(--line)]"></section>
-    </main>
-  </div>
-
-  <footer class="mt-10 border-t border-[var(--line)] bg-white">
-    <div class="mx-auto flex max-w-[760px] flex-col items-center gap-3 px-5 py-8 text-center">
-      <h3 class="brand text-3xl font-semibold text-slate-500/70">MediaScribe</h3>
-      <p class="text-sm text-slate-600">MediaScribe, written from video and developed by Brian Nunez · <a class="text-[var(--primary)] underline" href="https://github.com/brian-nunez" target="_blank" rel="noopener noreferrer">github.com/brian-nunez</a></p>
-    </div>
-  </footer>
-
-  <script>
     const sectionListEl = document.getElementById('section_list');
     const sectionSearchEl = document.getElementById('section_search');
     const languageListEl = document.getElementById('language_list');
@@ -122,6 +28,13 @@
       languageCounts: { all: 0 },
       navOpen: false,
     };
+
+    function readInitialFeed() {
+      const el = document.getElementById('initial-feed-data');
+      if (!el || !el.textContent) return null;
+      try { return JSON.parse(el.textContent); }
+      catch (_) { return null; }
+    }
 
     function applyNavState() {
       const desktop = window.matchMedia('(min-width: 768px)').matches;
@@ -309,9 +222,28 @@
       state.total = 0;
       state.hasMore = true;
       state.loading = false;
-      state.selectedLanguage = 'all';
       renderFeed();
       await loadFeedPage();
+    }
+
+    function hydrateInitialFeed(initial) {
+      const page = initial && initial.page ? initial.page : null;
+      if (!page) return false;
+      state.selectedSection = initial.selected_section || 'all';
+      state.selectedLanguage = initial.selected_language || 'all';
+      state.items = Array.isArray(page.items) ? page.items : [];
+      state.offset = Number(page.next_offset || state.items.length);
+      state.total = Number(page.total || state.items.length);
+      state.limit = Number(page.limit || state.limit);
+      state.hasMore = Boolean(page.has_more);
+      state.languageCounts = page.language_counts || {};
+      state.sections = [{ id: 'all', name: 'All', count: Number(page.total || 0) }].concat(
+        (Array.isArray(page.sections) ? page.sections : []).map(s => ({ id: s.id || '', name: s.name || 'Section', count: Number(s.count || 0) }))
+      );
+      renderSections();
+      renderLanguageFilter();
+      renderFeed();
+      return true;
     }
 
     function renderSearchDropdown() {
@@ -364,7 +296,9 @@
       if ('serviceWorker' in navigator) {
         try { await navigator.serviceWorker.register('/sw.js'); } catch (_) {}
       }
-      await resetAndLoadFeed();
+      if (!hydrateInitialFeed(readInitialFeed())) {
+        await resetAndLoadFeed();
+      }
       applyNavState();
 
       const sentinel = document.createElement('div');
@@ -419,6 +353,3 @@
     }
 
     boot();
-  </script>
-</body>
-</html>
