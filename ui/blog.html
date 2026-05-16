@@ -16,6 +16,15 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    window.__mermaid = mermaid;
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'neutral',
+      securityLevel: 'loose',
+    });
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet"/>
@@ -115,6 +124,13 @@
     }
     #article .katex {
       font-size: 1em;
+    }
+    #article .mermaid {
+      max-width: 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 0.5rem 0;
+      -webkit-overflow-scrolling: touch;
     }
   </style>
 </head>
@@ -247,6 +263,7 @@
             ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
           });
         }
+        renderMermaidBlocks(articleEl);
 
         contentEl.querySelectorAll('[data-lang]').forEach(btn => {
           btn.onclick = () => {
@@ -260,6 +277,28 @@
       };
 
       renderLanguage();
+    }
+
+    function renderMermaidBlocks(articleEl) {
+      if (!articleEl) return;
+      const blocks = articleEl.querySelectorAll('pre > code.language-mermaid, pre > code.lang-mermaid');
+      if (!blocks.length) return;
+
+      blocks.forEach((code, idx) => {
+        const pre = code.parentElement;
+        if (!pre || pre.tagName !== 'PRE') return;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'mermaid';
+        wrapper.id = `mermaid-${Date.now()}-${idx}`;
+        wrapper.textContent = code.textContent || '';
+        pre.replaceWith(wrapper);
+      });
+
+      const mermaid = window.__mermaid;
+      if (!mermaid || typeof mermaid.run !== 'function') return;
+      mermaid.run({ nodes: articleEl.querySelectorAll('.mermaid') }).catch(() => {
+        // Keep graceful degradation; raw definition remains visible if rendering fails.
+      });
     }
 
     async function boot() {
