@@ -246,6 +246,7 @@ func (h Handler) handlePublicFeed(w http.ResponseWriter, r *http.Request) {
 	}
 	q := r.URL.Query()
 	sectionID := strings.TrimSpace(q.Get("section_id"))
+	language := strings.TrimSpace(q.Get("lang"))
 	limit := 20
 	offset := 0
 	if v := strings.TrimSpace(q.Get("limit")); v != "" {
@@ -258,7 +259,7 @@ func (h Handler) handlePublicFeed(w http.ResponseWriter, r *http.Request) {
 			offset = n
 		}
 	}
-	page, err := h.Jobs.ListPublicFeedPage(r.Context(), sectionID, limit, offset)
+	page, err := h.Jobs.ListPublicFeedPage(r.Context(), sectionID, language, limit, offset)
 	if err != nil {
 		handleErr(w, err)
 		return

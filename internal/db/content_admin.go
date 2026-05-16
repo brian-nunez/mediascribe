@@ -4,16 +4,23 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"time"
 )
 
-func (s *Store) CountAllPublicBlogs(ctx context.Context) (int, error) {
-	row := s.db.QueryRowContext(ctx, `
+func (s *Store) CountAllPublicBlogs(ctx context.Context, language string) (int, error) {
+	query := `
 SELECT COUNT(1)
 FROM blog_catalog bc
 LEFT JOIN blog_publish_state bps ON bps.blog_id = bc.id
 WHERE bc.deleted = 0
-  AND COALESCE(bps.published, 0) = 1`)
+  AND COALESCE(bps.published, 0) = 1`
+	args := make([]any, 0, 1)
+	if strings.TrimSpace(language) != "" && strings.TrimSpace(strings.ToLower(language)) != "all" {
+		query += ` AND EXISTS (SELECT 1 FROM blog_output_embeddings boe WHERE boe.job_id = bc.job_id AND LOWER(boe.language) = LOWER(?))`
+		args = append(args, language)
+	}
+	row := s.db.QueryRowContext(ctx, query, args...)
 	var n int
 	if err := row.Scan(&n); err != nil {
 		return 0, err
@@ -21,14 +28,20 @@ WHERE bc.deleted = 0
 	return n, nil
 }
 
-func (s *Store) CountPublicBlogsInSection(ctx context.Context, sectionID string) (int, error) {
-	row := s.db.QueryRowContext(ctx, `
+func (s *Store) CountPublicBlogsInSection(ctx context.Context, sectionID, language string) (int, error) {
+	query := `
 SELECT COUNT(1)
 FROM blog_catalog bc
 LEFT JOIN blog_publish_state bps ON bps.blog_id = bc.id
 WHERE bc.deleted = 0
   AND COALESCE(bps.published, 0) = 1
-  AND COALESCE(bc.section_id, '') = ?`, sectionID)
+  AND COALESCE(bc.section_id, '') = ?`
+	args := []any{sectionID}
+	if strings.TrimSpace(language) != "" && strings.TrimSpace(strings.ToLower(language)) != "all" {
+		query += ` AND EXISTS (SELECT 1 FROM blog_output_embeddings boe WHERE boe.job_id = bc.job_id AND LOWER(boe.language) = LOWER(?))`
+		args = append(args, language)
+	}
+	row := s.db.QueryRowContext(ctx, query, args...)
 	var n int
 	if err := row.Scan(&n); err != nil {
 		return 0, err
@@ -36,8 +49,8 @@ WHERE bc.deleted = 0
 	return n, nil
 }
 
-func (s *Store) ListPublicBlogPage(ctx context.Context, sectionID string, limit, offset int) ([]PublicBlogRow, error) {
-	rows, err := s.db.QueryContext(ctx, `
+func (s *Store) ListPublicBlogPage(ctx context.Context, sectionID, language string, limit, offset int) ([]PublicBlogRow, error) {
+	query := `
 SELECT
   bc.id,
   bc.job_id,
@@ -61,9 +74,17 @@ LEFT JOIN blog_catalog_derived bcd ON bcd.blog_id = bc.id
 LEFT JOIN jobs j ON j.id = bc.job_id
 WHERE bc.deleted = 0
   AND COALESCE(bps.published, 0) = 1
-  AND COALESCE(bc.section_id, '') = ?
+  AND COALESCE(bc.section_id, '') = ?`
+	args := []any{sectionID}
+	if strings.TrimSpace(language) != "" && strings.TrimSpace(strings.ToLower(language)) != "all" {
+		query += ` AND EXISTS (SELECT 1 FROM blog_output_embeddings boe WHERE boe.job_id = bc.job_id AND LOWER(boe.language) = LOWER(?))`
+		args = append(args, language)
+	}
+	query += `
 ORDER BY bc.updated_at DESC
-LIMIT ? OFFSET ?`, sectionID, limit, offset)
+LIMIT ? OFFSET ?`
+	args = append(args, limit, offset)
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -111,8 +132,8 @@ LIMIT ? OFFSET ?`, sectionID, limit, offset)
 	return out, rows.Err()
 }
 
-func (s *Store) ListAllPublicBlogPage(ctx context.Context, limit, offset int) ([]PublicBlogRow, error) {
-	rows, err := s.db.QueryContext(ctx, `
+func (s *Store) ListAllPublicBlogPage(ctx context.Context, language string, limit, offset int) ([]PublicBlogRow, error) {
+	query := `
 SELECT
   bc.id,
   bc.job_id,
@@ -135,9 +156,17 @@ LEFT JOIN sections sec ON sec.id = bc.section_id
 LEFT JOIN blog_catalog_derived bcd ON bcd.blog_id = bc.id
 LEFT JOIN jobs j ON j.id = bc.job_id
 WHERE bc.deleted = 0
-  AND COALESCE(bps.published, 0) = 1
+  AND COALESCE(bps.published, 0) = 1`
+	args := make([]any, 0, 3)
+	if strings.TrimSpace(language) != "" && strings.TrimSpace(strings.ToLower(language)) != "all" {
+		query += ` AND EXISTS (SELECT 1 FROM blog_output_embeddings boe WHERE boe.job_id = bc.job_id AND LOWER(boe.language) = LOWER(?))`
+		args = append(args, language)
+	}
+	query += `
 ORDER BY bc.updated_at DESC
-LIMIT ? OFFSET ?`, limit, offset)
+LIMIT ? OFFSET ?`
+	args = append(args, limit, offset)
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

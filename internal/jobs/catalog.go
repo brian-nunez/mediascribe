@@ -95,7 +95,7 @@ func (s *Service) ListPublicCatalog(ctx context.Context) (PublicCatalog, error) 
 	}, nil
 }
 
-func (s *Service) ListPublicFeedPage(ctx context.Context, sectionID string, limit, offset int) (PublicFeedPage, error) {
+func (s *Service) ListPublicFeedPage(ctx context.Context, sectionID, language string, limit, offset int) (PublicFeedPage, error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -114,28 +114,28 @@ func (s *Service) ListPublicFeedPage(ctx context.Context, sectionID string, limi
 	)
 	switch mode {
 	case "", "all":
-		rows, err = s.Store.ListAllPublicBlogPage(ctx, limit, offset)
+		rows, err = s.Store.ListAllPublicBlogPage(ctx, language, limit, offset)
 		if err != nil {
 			return PublicFeedPage{}, err
 		}
-		total, err = s.Store.CountAllPublicBlogs(ctx)
+		total, err = s.Store.CountAllPublicBlogs(ctx, language)
 	case "unsectioned":
-		rows, err = s.Store.ListPublicBlogPage(ctx, "", limit, offset)
+		rows, err = s.Store.ListPublicBlogPage(ctx, "", language, limit, offset)
 		if err != nil {
 			return PublicFeedPage{}, err
 		}
-		total, err = s.Store.CountPublicBlogsInSection(ctx, "")
+		total, err = s.Store.CountPublicBlogsInSection(ctx, "", language)
 	default:
-		rows, err = s.Store.ListPublicBlogPage(ctx, mode, limit, offset)
+		rows, err = s.Store.ListPublicBlogPage(ctx, mode, language, limit, offset)
 		if err != nil {
 			return PublicFeedPage{}, err
 		}
-		total, err = s.Store.CountPublicBlogsInSection(ctx, mode)
+		total, err = s.Store.CountPublicBlogsInSection(ctx, mode, language)
 	}
 	if err != nil {
 		return PublicFeedPage{}, err
 	}
-	sections, err := s.publicSectionsWithCounts(ctx)
+	sections, err := s.publicSectionsWithCounts(ctx, language)
 	if err != nil {
 		return PublicFeedPage{}, err
 	}
@@ -657,14 +657,14 @@ func normalizeTranscriptForDisplay(raw string) string {
 	return strings.Join(lines, "\n")
 }
 
-func (s *Service) publicSectionsWithCounts(ctx context.Context) ([]PublicSectionSummary, error) {
+func (s *Service) publicSectionsWithCounts(ctx context.Context, language string) ([]PublicSectionSummary, error) {
 	sections, err := s.Store.ListSections(ctx)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]PublicSectionSummary, 0, len(sections)+1)
 	for _, sec := range sections {
-		n, err := s.Store.CountPublicBlogsInSection(ctx, sec.ID)
+		n, err := s.Store.CountPublicBlogsInSection(ctx, sec.ID, language)
 		if err != nil {
 			return nil, err
 		}
@@ -673,7 +673,7 @@ func (s *Service) publicSectionsWithCounts(ctx context.Context) ([]PublicSection
 		}
 		out = append(out, PublicSectionSummary{ID: sec.ID, Name: sec.Name, Count: n})
 	}
-	unsectionedCount, err := s.Store.CountPublicBlogsInSection(ctx, "")
+	unsectionedCount, err := s.Store.CountPublicBlogsInSection(ctx, "", language)
 	if err != nil {
 		return nil, err
 	}

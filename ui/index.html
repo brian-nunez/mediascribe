@@ -226,10 +226,10 @@
         .map((lang) => languageButton(lang, counts.get(lang) || 0, lang === state.selectedLanguage))
         .join('');
       languageListEl.querySelectorAll('[data-language]').forEach((btn) => {
-        btn.onclick = () => {
+        btn.onclick = async () => {
           state.selectedLanguage = btn.getAttribute('data-language') || 'all';
           renderLanguageFilter();
-          renderFeed();
+          await resetAndLoadFeed();
         };
       });
     }
@@ -283,6 +283,7 @@
       params.set('limit', String(state.limit));
       params.set('offset', String(state.offset));
       if (state.selectedSection !== 'all') params.set('section_id', state.selectedSection);
+      if (state.selectedLanguage !== 'all') params.set('lang', state.selectedLanguage);
 
       const res = await fetch(`/api/public/feed?${params.toString()}`);
       if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);

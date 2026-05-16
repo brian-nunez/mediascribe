@@ -91,10 +91,9 @@ ORDER BY bc.updated_at DESC`
 
 func (s *Store) CountPublishedLanguages(ctx context.Context, sectionID string) ([]LanguageCount, error) {
 	base := `
-SELECT je.value AS language, COUNT(DISTINCT bc.id) AS cnt
+SELECT boe.language AS language, COUNT(DISTINCT bc.id) AS cnt
 FROM blog_catalog bc
-JOIN blog_catalog_derived bcd ON bcd.blog_id = bc.id
-JOIN json_each(bcd.languages_json) je
+JOIN blog_output_embeddings boe ON boe.job_id = bc.job_id
 LEFT JOIN blog_publish_state bps ON bps.blog_id = bc.id
 WHERE bc.deleted = 0
   AND COALESCE(bps.published, 0) = 1`
@@ -105,7 +104,7 @@ WHERE bc.deleted = 0
 	} else if sectionID == "unsectioned" {
 		base += " AND COALESCE(bc.section_id, '') = ''"
 	}
-	base += " GROUP BY je.value ORDER BY je.value ASC"
+	base += " GROUP BY boe.language ORDER BY boe.language ASC"
 
 	rows, err := s.db.QueryContext(ctx, base, args...)
 	if err != nil {
