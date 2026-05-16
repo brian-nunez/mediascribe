@@ -99,19 +99,25 @@
         `;
 
         const articleEl = document.getElementById('article');
-        if (articleEl && typeof renderMathInElement === 'function') {
-          renderMathInElement(articleEl, {
-            throwOnError: false,
-            strict: 'ignore',
-            delimiters: [
-              { left: '$$', right: '$$', display: true },
-              { left: '$', right: '$', display: false },
-              { left: '\\\\[', right: '\\\\]', display: true },
-              { left: '\\\\(', right: '\\\\)', display: false },
-            ],
-            ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
-          });
-        }
+        const initMath = () => {
+          if (articleEl && typeof renderMathInElement === 'function') {
+            renderMathInElement(articleEl, {
+              throwOnError: false,
+              strict: 'ignore',
+              delimiters: [
+                { left: '$$', right: '$$', display: true },
+                { left: '$', right: '$', display: false },
+                { left: '\\\\[', right: '\\\\]', display: true },
+                { left: '\\\\(', right: '\\\\)', display: false },
+              ],
+              ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+            });
+          } else if (articleEl) {
+            // Retry once if scripts haven't finished loading
+            setTimeout(initMath, 100);
+          }
+        };
+        initMath();
         renderMermaidBlocks(articleEl);
 
         contentEl.querySelectorAll('[data-lang]').forEach(btn => {
