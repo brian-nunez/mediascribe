@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -374,10 +375,83 @@ func runMarkComplete(ctx context.Context, store *db.Store, job db.Job, embedder 
 	if err := store.UpsertBlogOutput(ctx, blog); err != nil {
 		return err
 	}
+	if err := upsertCatalogAndCachedContent(ctx, store, job, blog.Title); err != nil {
+		return err
+	}
 	// Cleanup large source video artifact after successful completion to save disk.
 	_ = cleanupSourceVideo(job.ArtifactDir)
 
 	return store.MarkJobComplete(ctx, job.ID)
+}
+
+func upsertCatalogAndCachedContent(ctx context.Context, store *db.Store, job db.Job, blogTitle string) error {
+	now := time.Now().UTC()
+	title := strings.TrimSpace(blogTitle)
+	if title == "" {
+		title = strings.TrimSpace(job.Title)
+	}
+	if title == "" {
+		title = "Tech Blog " + job.ID[:8]
+	}
+
+	catalog, err := store.GetBlogCatalogByJobID(ctx, job.ID)
+	if err != nil {
+		if err != db.ErrNotFound {
+			return err
+		}
+		catalog = db.BlogCatalog{
+			ID:        uuid.NewString(),
+			JobID:     job.ID,
+			Title:     title,
+			Deleted:   false,
+			CreatedAt: now,
+			UpdatedAt: now,
+		}
+	} else {
+		catalog.Title = title
+		catalog.UpdatedAt = now
+	}
+	if err := store.UpsertBlogCatalog(ctx, catalog); err != nil {
+		return err
+	}
+
+	preview, langs := derivePreviewAndLanguages(job.ArtifactDir)
+	langsPayload, _ := json.Marshal(langs)
+	if err := store.UpsertBlogCatalogDerived(ctx, catalog.ID, preview, string(langsPayload)); err != nil {
+		return err
+	}
+
+	if raw, err := os.ReadFile(filepath.Join(job.ArtifactDir, "final.md")); err == nil {
+		_ = store.UpsertBlogContentCache(ctx, db.BlogContentCache{
+			BlogID:    catalog.ID,
+			Language:  "en",
+			Markdown:  string(raw),
+			UpdatedAt: now,
+		})
+	}
+	matches, _ := filepath.Glob(filepath.Join(job.ArtifactDir, "final.*.md"))
+	for _, path := range matches {
+		base := filepath.Base(path)
+		if base == "final.md" {
+			continue
+		}
+		lang := strings.TrimSuffix(strings.TrimPrefix(base, "final."), ".md")
+		lang = sanitizeLang(lang)
+		if lang == "" || lang == "en" {
+			continue
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		_ = store.UpsertBlogContentCache(ctx, db.BlogContentCache{
+			BlogID:    catalog.ID,
+			Language:  lang,
+			Markdown:  string(raw),
+			UpdatedAt: now,
+		})
+	}
+	return nil
 }
 
 func cleanupSourceVideo(artifactDir string) error {
@@ -476,4 +550,40 @@ func BuildAnalysisString(path string) (string, error) {
 		return string(data), nil
 	}
 	return string(formatted), nil
+}
+
+func derivePreviewAndLanguages(artifactDir string) (string, []string) {
+	finalPath := filepath.Join(artifactDir, "final.md")
+	raw, _ := os.ReadFile(finalPath)
+	preview := strings.TrimSpace(string(raw))
+	if preview != "" {
+		preview = strings.ReplaceAll(preview, "\n", " ")
+		preview = strings.Join(strings.Fields(preview), " ")
+		if len(preview) > 220 {
+			preview = preview[:220] + "..."
+		}
+	}
+	if preview == "" {
+		preview = "No preview available."
+	}
+
+	langs := make([]string, 0, 4)
+	if len(raw) > 0 {
+		langs = append(langs, "en")
+	}
+	matches, _ := filepath.Glob(filepath.Join(artifactDir, "final.*.md"))
+	for _, path := range matches {
+		base := filepath.Base(path)
+		if base == "final.md" {
+			continue
+		}
+		lang := strings.TrimSuffix(strings.TrimPrefix(base, "final."), ".md")
+		lang = sanitizeLang(lang)
+		if lang == "" || lang == "en" {
+			continue
+		}
+		langs = append(langs, lang)
+	}
+	sort.Strings(langs)
+	return preview, langs
 }

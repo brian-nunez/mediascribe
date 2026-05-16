@@ -113,6 +113,7 @@
     let selectedJobID = '';
     let jobsPollTimer = null;
     let embeddingsPollTimer = null;
+    let statsPollTimer = null;
 
     function stageStateFor(job, stage, stageIndex, currentIndex) {
       if (job.status === 'complete') return 'done';
@@ -237,14 +238,18 @@
     async function boot() {
       const user = await AdminCommon.requireAuth();
       if (!user) return;
+      await loadStats();
+      const jobs = await loadJobs();
+      renderJobsList(jobs);
+      await loadEmbeddingStatus();
+    }
+
+    async function loadStats() {
       const statsOut = await AdminCommon.api('/api/admin/stats');
       const stats = statsOut.stats || {};
       document.getElementById('blogs_count').textContent = String(stats.blogs_count || 0);
       document.getElementById('sections_count').textContent = String(stats.sections_count || 0);
       document.getElementById('published_count').textContent = String(stats.published_count || 0);
-      const jobs = await loadJobs();
-      renderJobsList(jobs);
-      await loadEmbeddingStatus();
     }
 
     document.getElementById('create_btn').onclick = async () => {
@@ -312,6 +317,11 @@
         await loadEmbeddingStatus();
       } catch (_) {}
     }, 4000);
+    statsPollTimer = setInterval(async () => {
+      try {
+        await loadStats();
+      } catch (_) {}
+    }, 5000);
   </script>
 </body>
 </html>
