@@ -132,6 +132,30 @@
       padding: 0.5rem 0;
       -webkit-overflow-scrolling: touch;
     }
+    #article .mermaid-fallback {
+      margin: 1rem 0;
+      border: 1px solid #fecaca;
+      background: #fff7f7;
+      border-radius: 0.5rem;
+      overflow: hidden;
+    }
+    #article .mermaid-fallback-head {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #991b1b;
+      background: #fee2e2;
+      border-bottom: 1px solid #fecaca;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    #article .mermaid-fallback pre {
+      margin: 0;
+      border-radius: 0;
+      background: #fff;
+      color: #111827;
+      max-height: 320px;
+    }
   </style>
 </head>
 <body>
@@ -279,26 +303,38 @@
       renderLanguage();
     }
 
-    function renderMermaidBlocks(articleEl) {
+    async function renderMermaidBlocks(articleEl) {
       if (!articleEl) return;
       const blocks = articleEl.querySelectorAll('pre > code.language-mermaid, pre > code.lang-mermaid');
       if (!blocks.length) return;
 
-      blocks.forEach((code, idx) => {
-        const pre = code.parentElement;
-        if (!pre || pre.tagName !== 'PRE') return;
-        const wrapper = document.createElement('div');
-        wrapper.className = 'mermaid';
-        wrapper.id = `mermaid-${Date.now()}-${idx}`;
-        wrapper.textContent = code.textContent || '';
-        pre.replaceWith(wrapper);
-      });
-
       const mermaid = window.__mermaid;
       if (!mermaid || typeof mermaid.run !== 'function') return;
-      mermaid.run({ nodes: articleEl.querySelectorAll('.mermaid') }).catch(() => {
-        // Keep graceful degradation; raw definition remains visible if rendering fails.
-      });
+      for (let idx = 0; idx < blocks.length; idx += 1) {
+        const code = blocks[idx];
+        const pre = code.parentElement;
+        if (!pre || pre.tagName !== 'PRE') continue;
+        const source = (code.textContent || '').trim();
+        if (!source) continue;
+
+        const host = document.createElement('div');
+        host.className = 'mermaid';
+        const renderID = `mermaid-${Date.now()}-${idx}`;
+
+        try {
+          const out = await mermaid.render(renderID, source);
+          host.innerHTML = out.svg;
+          pre.replaceWith(host);
+        } catch (_) {
+          const fallback = document.createElement('div');
+          fallback.className = 'mermaid-fallback';
+          fallback.innerHTML = `
+            <div class="mermaid-fallback-head">Diagram syntax issue (showing source)</div>
+            <pre><code>${escapeHTML(source)}</code></pre>
+          `;
+          pre.replaceWith(fallback);
+        }
+      }
     }
 
     async function boot() {
