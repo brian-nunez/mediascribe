@@ -377,7 +377,9 @@
 
     async function boot() {
       if ('serviceWorker' in navigator) {
-        try { await navigator.serviceWorker.register('/sw.js'); } catch (_) {}
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
       }
       if (!hydrateInitialFeed(readInitialFeed())) {
         await resetAndLoadFeed();

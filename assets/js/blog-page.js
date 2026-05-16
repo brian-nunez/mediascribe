@@ -1,4 +1,4 @@
-    marked.setOptions({ gfm: true, breaks: true });
+    marked.setOptions({ gfm: true, breaks: false });
 
     const contentEl = document.getElementById('content');
 
@@ -171,7 +171,9 @@
 
     async function boot() {
       if ('serviceWorker' in navigator) {
-        try { await navigator.serviceWorker.register('/sw.js'); } catch (_) {}
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
       }
 
       window.addEventListener('pageswap', (event) => {

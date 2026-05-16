@@ -1,7 +1,6 @@
-const CACHE_NAME = 'mediascribe-v2';
+const CACHE_NAME = 'mediascribe-v3';
 const STATIC_ASSETS = [
   '/',
-  '/blog',
   '/admin',
   '/admin/login',
   '/admin/sections',
