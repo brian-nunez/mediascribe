@@ -2,15 +2,15 @@ package pages
 
 templ Blog(data BlogViewData) {
 	@BlogLayout(blogPageTitle(data)) {
-		<body>
+		<body data-page="blog">
 			<header class="sticky top-0 z-40 border-b border-[var(--line)] bg-[var(--surface)]">
 				<div class="mx-auto flex h-16 w-full max-w-[760px] items-center justify-between px-5">
-					<a href="/" class="brand text-4xl font-black tracking-tight text-[var(--primary)]">MediaScribe</a>
+					<a href="/" class="brand text-4xl font-black tracking-tight text-[var(--primary)]" data-vt-brand>MediaScribe</a>
 					<a href="/" class="rounded-full border border-[var(--line)] px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Back to Feed</a>
 				</div>
 			</header>
 			<main class="mx-auto max-w-[760px] px-5 py-12">
-				<article id="content" class="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8">
+				<article id="content" class="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8" data-blog-shell>
 					if data.LoadError != "" {
 						<p class="text-sm text-red-700">{ data.LoadError }</p>
 					}
@@ -18,9 +18,9 @@ templ Blog(data BlogViewData) {
 						<p class="text-sm text-red-700">Blog not found.</p>
 					}
 					if data.LoadError == "" && data.Found {
-						<span class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--primary)]">{ data.Blog.SectionName }</span>
-						<h1 class="headline mt-2 text-[2.45rem] leading-[1.08] text-slate-900">{ data.Blog.Title }</h1>
-						<div class="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+						<span class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--primary)]" data-blog-section>{ data.Blog.SectionName }</span>
+						<h1 class="headline mt-2 text-[2.45rem] leading-[1.08] text-slate-900" data-blog-title>{ data.Blog.Title }</h1>
+						<div class="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-500" data-blog-meta>
 							<span>Job { shortJobID(data.Blog.JobID) }</span>
 							<span>•</span>
 							<span>{ dateLabel(data.Blog.UpdatedAt) }</span>

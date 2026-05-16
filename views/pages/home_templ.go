@@ -41,7 +41,7 @@ func Home(data FeedViewData) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<body class=\"overflow-x-hidden\"><header class=\"fixed top-0 left-0 right-0 z-50 bg-[var(--surface)] border-b border-[var(--line)]\"><div class=\"mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between px-5\"><div class=\"flex items-center gap-3\"><button id=\"menu_btn\" class=\"rounded-full p-2 text-[var(--primary)] hover:bg-[var(--primary-soft)]\" type=\"button\" aria-label=\"Toggle navigation\">☰</button> <a href=\"/\" class=\"brand text-4xl font-black tracking-tight text-[var(--primary)]\">MediaScribe</a></div><div></div></div></header><div id=\"mobile_backdrop\" class=\"fixed inset-0 z-40 hidden bg-black/35 md:hidden\"></div><div class=\"mx-auto flex max-w-[1200px] pt-16\"><aside id=\"left_nav\" class=\"fixed left-0 top-16 z-50 flex h-[calc(100vh-64px)] w-[280px] -translate-x-full flex-col overflow-y-auto border-r border-[var(--line)] bg-white p-6 transition-transform duration-200 md:sticky md:top-16 md:z-auto md:translate-x-0\"><h2 class=\"brand text-3xl font-bold text-[var(--primary)]\">Sections</h2><div class=\"mt-3 rounded-lg border border-[var(--line)] bg-slate-50 px-3 py-2\"><input id=\"section_search\" class=\"w-full border-0 bg-transparent p-0 text-sm text-slate-700 placeholder:text-slate-500 focus:ring-0\" placeholder=\"Filter sections\"></div><div id=\"section_list\" class=\"mt-3 space-y-1\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<body class=\"overflow-x-hidden\" data-page=\"feed\"><header class=\"fixed top-0 left-0 right-0 z-50 bg-[var(--surface)] border-b border-[var(--line)]\"><div class=\"mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between px-5\"><div class=\"flex items-center gap-3\"><button id=\"menu_btn\" class=\"rounded-full p-2 text-[var(--primary)] hover:bg-[var(--primary-soft)]\" type=\"button\" aria-label=\"Toggle navigation\">☰</button> <a href=\"/\" class=\"brand text-4xl font-black tracking-tight text-[var(--primary)]\" data-vt-brand>MediaScribe</a></div><div></div></div></header><div id=\"mobile_backdrop\" class=\"fixed inset-0 z-40 hidden bg-black/35 md:hidden\"></div><div class=\"mx-auto flex max-w-[1200px] pt-16\"><aside id=\"left_nav\" class=\"fixed left-0 top-16 z-50 flex h-[calc(100vh-64px)] w-[280px] -translate-x-full flex-col overflow-y-auto border-r border-[var(--line)] bg-white p-6 transition-transform duration-200 md:sticky md:top-16 md:z-auto md:translate-x-0\"><h2 class=\"brand text-3xl font-bold text-[var(--primary)]\">Sections</h2><div class=\"mt-3 rounded-lg border border-[var(--line)] bg-slate-50 px-3 py-2\"><input id=\"section_search\" class=\"w-full border-0 bg-transparent p-0 text-sm text-slate-700 placeholder:text-slate-500 focus:ring-0\" placeholder=\"Filter sections\"></div><div id=\"section_list\" class=\"mt-3 space-y-1\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -465,92 +465,105 @@ func Home(data FeedViewData) templ.Component {
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "\" class=\"group block py-8\"><div class=\"text-xs text-slate-500\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "\" class=\"group block py-8\" data-blog-card data-blog-id=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var30 string
-						templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(blog.SectionName)
+						templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(blog.ID)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/home.templ`, Line: 78, Col: 64}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/home.templ`, Line: 77, Col: 113}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, " • ")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "\"><div class=\"text-xs text-slate-500\" data-blog-meta>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var31 string
-						templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(dateLabel(blog.UpdatedAt))
+						templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(blog.SectionName)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/home.templ`, Line: 78, Col: 98}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/home.templ`, Line: 78, Col: 79}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "</div><h2 class=\"mt-2 brand text-[2rem] leading-tight text-slate-900 transition group-hover:text-[var(--primary)]\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, " • ")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var32 string
-						templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(blog.Title)
+						templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(dateLabel(blog.UpdatedAt))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/home.templ`, Line: 79, Col: 131}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/home.templ`, Line: 78, Col: 113}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "</h2><p class=\"mt-2 text-lg leading-relaxed text-slate-600\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "</div><h2 class=\"mt-2 brand text-[2rem] leading-tight text-slate-900 transition group-hover:text-[var(--primary)]\" data-blog-title>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var33 string
-						templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(blog.Preview)
+						templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(blog.Title)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/home.templ`, Line: 80, Col: 79}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/home.templ`, Line: 79, Col: 147}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "</p><div class=\"mt-3 text-xs text-slate-500\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "</h2><p class=\"mt-2 text-lg leading-relaxed text-slate-600\" data-blog-preview>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var34 string
-						templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(sourceDomain(blog.SourceURL, blog.SourcePath))
+						templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(blog.Preview)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/home.templ`, Line: 81, Col: 98}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/home.templ`, Line: 80, Col: 97}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, " • ")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "</p><div class=\"mt-3 text-xs text-slate-500\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var35 string
-						templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(len(blog.Languages))
+						templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(sourceDomain(blog.SourceURL, blog.SourcePath))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/home.templ`, Line: 81, Col: 126}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/home.templ`, Line: 81, Col: 98}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, " language</div></a>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, " • ")
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
+						var templ_7745c5c3_Var36 string
+						templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(len(blog.Languages))
+						if templ_7745c5c3_Err != nil {
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/home.templ`, Line: 81, Col: 126}
+						}
+						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, " language</div></a>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "</section></main></div><footer class=\"mt-10 border-t border-[var(--line)] bg-white\"><div class=\"mx-auto flex max-w-[760px] flex-col items-center gap-3 px-5 py-8 text-center\"><h3 class=\"brand text-3xl font-semibold text-slate-500/70\">MediaScribe</h3><p class=\"text-sm text-slate-600\">MediaScribe, written from video and developed by Brian Nunez · <a class=\"text-[var(--primary)] underline\" href=\"https://github.com/brian-nunez\" target=\"_blank\" rel=\"noopener noreferrer\">github.com/brian-nunez</a></p></div></footer>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "</section></main></div><footer class=\"mt-10 border-t border-[var(--line)] bg-white\"><div class=\"mx-auto flex max-w-[760px] flex-col items-center gap-3 px-5 py-8 text-center\"><h3 class=\"brand text-3xl font-semibold text-slate-500/70\">MediaScribe</h3><p class=\"text-sm text-slate-600\">MediaScribe, written from video and developed by Brian Nunez · <a class=\"text-[var(--primary)] underline\" href=\"https://github.com/brian-nunez\" target=\"_blank\" rel=\"noopener noreferrer\">github.com/brian-nunez</a></p></div></footer>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -558,7 +571,7 @@ func Home(data FeedViewData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<script src=\"/assets/js/public-feed.js\"></script></body>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "<script src=\"/assets/js/public-feed.js\"></script></body>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

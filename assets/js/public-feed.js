@@ -83,6 +83,86 @@
       return `/blog/${encodeURIComponent(blog.id)}?lang=en`;
     }
 
+    function isBlogNavigation(event, link) {
+      if (!link || event.defaultPrevented || event.button !== 0) return false;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return false;
+      if (link.target && link.target !== '_self') return false;
+      let url;
+      try { url = new URL(link.href, window.location.href); }
+      catch (_) { return false; }
+      return url.origin === window.location.origin && url.pathname.startsWith('/blog/');
+    }
+
+    function clearTransitionSource() {
+      document.querySelectorAll('[data-vt-active]').forEach((el) => {
+        el.style.viewTransitionName = '';
+        el.style.contain = '';
+        delete el.dataset.vtActive;
+      });
+    }
+
+    function armBlogTransition(link) {
+      if (!window.CSS || !CSS.supports('view-transition-name: blog-title')) return;
+      clearTransitionSource();
+
+      const row = link.closest('[data-blog-card]') || link;
+      const title = row.querySelector('[data-blog-title]');
+      const meta = row.querySelector('[data-blog-meta]');
+
+      row.style.viewTransitionName = 'blog-shell';
+      row.style.contain = 'layout';
+      row.dataset.vtActive = 'true';
+
+      if (title) {
+        title.style.viewTransitionName = 'blog-title';
+        title.style.contain = 'layout';
+        title.dataset.vtActive = 'true';
+      }
+      if (meta) {
+        meta.style.viewTransitionName = 'blog-meta';
+        meta.style.contain = 'layout';
+        meta.dataset.vtActive = 'true';
+      }
+    }
+
+    // Handle cross-document view transitions for the "back" navigation
+    function handlePageReveal(event) {
+      if (!event.viewTransition) return;
+
+      const navigation = window.navigation?.activation;
+      if (!navigation) return;
+
+      const fromUrl = new URL(navigation.from?.url || '');
+      const toUrl = new URL(navigation.entry?.url || '');
+
+      // If we are coming back from a blog page to the feed
+      if (fromUrl.pathname.startsWith('/blog/') && (toUrl.pathname === '/' || toUrl.pathname === '/index.html')) {
+        const blogId = decodeURIComponent(fromUrl.pathname.split('/')[2]);
+        if (!blogId) return;
+
+        // Try to find the matching blog card in the feed
+        const findAndArm = () => {
+          const card = document.querySelector(`[data-blog-id="${blogId}"]`);
+          if (card) {
+            armBlogTransition(card);
+            return true;
+          }
+          return false;
+        };
+
+        if (!findAndArm()) {
+          // If not found yet, it might be due to async rendering
+          const observer = new MutationObserver(() => {
+            if (findAndArm()) observer.disconnect();
+          });
+          observer.observe(feedEl, { childList: true, subtree: true });
+          setTimeout(() => observer.disconnect(), 2000);
+        }
+      }
+    }
+
+    window.addEventListener('pagereveal', handlePageReveal);
+
     function searchSnippet(content) {
       const text = String(content || '').replace(/\s+/g, ' ').trim();
       if (text.length <= 170) return text;
@@ -170,10 +250,12 @@
         const row = document.createElement('a');
         row.href = blogURL(blog);
         row.className = 'group block py-8';
+        row.dataset.blogCard = '';
+        row.dataset.blogId = blog.id;
         row.innerHTML = `
-          <div class="text-xs text-slate-500">${escapeHTML(blog.section_name || 'Unsectioned')} • ${escapeHTML(dateLabel(blog.updated_at))}</div>
-          <h2 class="mt-2 brand text-[2rem] leading-tight text-slate-900 transition group-hover:text-[var(--primary)]">${escapeHTML(blog.title || 'Untitled')}</h2>
-          <p class="mt-2 text-lg leading-relaxed text-slate-600">${escapeHTML(blog.preview || '')}</p>
+          <div class="text-xs text-slate-500" data-blog-meta>${escapeHTML(blog.section_name || 'Unsectioned')} • ${escapeHTML(dateLabel(blog.updated_at))}</div>
+          <h2 class="mt-2 brand text-[2rem] leading-tight text-slate-900 transition group-hover:text-[var(--primary)]" data-blog-title>${escapeHTML(blog.title || 'Untitled')}</h2>
+          <p class="mt-2 text-lg leading-relaxed text-slate-600" data-blog-preview>${escapeHTML(blog.preview || '')}</p>
           <div class="mt-3 text-xs text-slate-500">${escapeHTML(sourceDomain(source))} • ${(blog.languages || []).length} language${(blog.languages || []).length === 1 ? '' : 's'}</div>
         `;
         feedEl.appendChild(row);
@@ -264,10 +346,11 @@
         const row = document.createElement('a');
         row.href = `/blog/${encodeURIComponent(item.blog_id)}?lang=en&q=${encodeURIComponent(state.query.trim())}`;
         row.className = 'block rounded-lg px-2 py-2 text-sm hover:bg-slate-100';
+        row.dataset.blogCard = '';
         row.innerHTML = `
           <div class="flex items-center justify-between gap-2">
-            <p class="font-semibold text-slate-800">${escapeHTML(item.title || 'Untitled')}</p>
-            <span class="text-[10px] uppercase tracking-wide text-slate-500">${escapeHTML(item.section_name || 'Unsectioned')}</span>
+            <p class="font-semibold text-slate-800" data-blog-title>${escapeHTML(item.title || 'Untitled')}</p>
+            <span class="text-[10px] uppercase tracking-wide text-slate-500" data-blog-meta>${escapeHTML(item.section_name || 'Unsectioned')}</span>
           </div>
           <p class="mt-1 text-xs text-slate-600">${escapeHTML(searchSnippet(item.preview || ''))}</p>
           <p class="mt-1 text-[11px] text-slate-500">Best match at ${timeLabel(item.match_start_seconds)}-${timeLabel(item.match_end_seconds)}</p>
@@ -349,6 +432,11 @@
         state.navOpen = false;
         applyNavState();
       });
+      document.addEventListener('click', (event) => {
+        const target = event.target instanceof Element ? event.target : event.target.parentElement;
+        const link = target ? target.closest('a[href]') : null;
+        if (isBlogNavigation(event, link)) armBlogTransition(link);
+      }, { capture: true });
       window.addEventListener('resize', applyNavState);
     }
 
