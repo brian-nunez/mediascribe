@@ -19,7 +19,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=1 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -o /out/server ./cmd/server
+RUN CGO_ENABLED=1 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -o /out/server ./cmd
 RUN CGO_ENABLED=1 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -o /out/admin ./cmd/admin
 RUN CGO_ENABLED=1 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -o /out/rebuild-embeddings ./cmd/rebuild-embeddings
 
@@ -58,7 +58,7 @@ COPY --from=builder /tmp/whisper.cpp/build/src/libwhisper.so* /opt/whisper/lib/
 COPY --from=builder /tmp/whisper.cpp/build/ggml/src/libggml*.so* /opt/whisper/lib/
 
 # Runtime assets
-COPY ui ./ui
+COPY assets ./assets
 COPY internal/db/migrations ./internal/db/migrations
 COPY migrations ./migrations
 
@@ -74,6 +74,7 @@ ENV HTTP_ADDR=:8080 \
     WHISPER_MODEL_PATH=/opt/whisper/models/ggml-base.bin \
     LD_LIBRARY_PATH=/opt/whisper/lib \
     YTDLP_BIN=yt-dlp \
+    OTEL_ENABLED=false \
     ENABLE_TRANSLATION=false
 
 EXPOSE 8080

@@ -1,30 +1,3 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#111111" />
-  <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml" />
-  <title>Admin Sections</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-slate-100 text-slate-900">
-  <main class="mx-auto w-[95%] max-w-7xl py-6">
-    <div id="nav"></div>
-
-    <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Sections</h2>
-      <div class="mt-3 flex gap-2">
-        <input id="new_name" class="min-w-0 flex-1 rounded-lg border border-slate-300 px-2 py-1.5 text-sm" placeholder="New section name" />
-        <button id="create_btn" class="rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900">Create</button>
-      </div>
-      <div id="list" class="mt-3 space-y-2"></div>
-    </section>
-  </main>
-
-  <script src="/admin/common.js"></script>
-  <script>
     document.getElementById('nav').innerHTML = AdminCommon.navHTML('sections');
     document.getElementById('logout_btn').onclick = AdminCommon.logout;
 
@@ -94,6 +67,3 @@
     };
 
     render();
-  </script>
-</body>
-</html>
