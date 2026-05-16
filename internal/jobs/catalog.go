@@ -74,13 +74,14 @@ type PublicBlogSummary struct {
 }
 
 type PublicFeedPage struct {
-	Items      []PublicBlogSummary    `json:"items"`
-	Sections   []PublicSectionSummary `json:"sections"`
-	Offset     int                    `json:"offset"`
-	Limit      int                    `json:"limit"`
-	Total      int                    `json:"total"`
-	HasMore    bool                   `json:"has_more"`
-	NextOffset int                    `json:"next_offset"`
+	Items          []PublicBlogSummary    `json:"items"`
+	Sections       []PublicSectionSummary `json:"sections"`
+	LanguageCounts map[string]int         `json:"language_counts"`
+	Offset         int                    `json:"offset"`
+	Limit          int                    `json:"limit"`
+	Total          int                    `json:"total"`
+	HasMore        bool                   `json:"has_more"`
+	NextOffset     int                    `json:"next_offset"`
 }
 
 func (s *Service) ListPublicCatalog(ctx context.Context) (PublicCatalog, error) {
@@ -147,7 +148,10 @@ func (s *Service) ListPublicFeedPage(ctx context.Context, sectionID string, limi
 
 	items := make([]PublicBlogSummary, 0, len(rows))
 	for _, row := range rows {
-		preview, langs := blogPreviewAndLanguages(row.ArtifactDir)
+		preview, langs := row.PreviewText, parseLanguagesJSON(row.LanguagesJSON)
+		if strings.TrimSpace(preview) == "" || len(langs) == 0 {
+			preview, langs = blogPreviewAndLanguages(row.ArtifactDir)
+		}
 		sectionName := row.SectionName
 		if strings.TrimSpace(sectionName) == "" {
 			sectionName = "Unsectioned"
@@ -168,14 +172,27 @@ func (s *Service) ListPublicFeedPage(ctx context.Context, sectionID string, limi
 	}
 
 	nextOffset := offset + len(items)
+	langCountsList, err := s.Store.CountPublishedLanguages(ctx, mode)
+	if err != nil {
+		return PublicFeedPage{}, err
+	}
+	langCounts := make(map[string]int, len(langCountsList))
+	for _, lc := range langCountsList {
+		lang := strings.TrimSpace(strings.ToLower(lc.Language))
+		if lang == "" {
+			continue
+		}
+		langCounts[lang] = lc.Count
+	}
 	return PublicFeedPage{
-		Items:      items,
-		Sections:   sections,
-		Offset:     offset,
-		Limit:      limit,
-		Total:      total,
-		HasMore:    nextOffset < total,
-		NextOffset: nextOffset,
+		Items:          items,
+		Sections:       sections,
+		LanguageCounts: langCounts,
+		Offset:         offset,
+		Limit:          limit,
+		Total:          total,
+		HasMore:        nextOffset < total,
+		NextOffset:     nextOffset,
 	}, nil
 }
 
@@ -348,11 +365,65 @@ func (s *Service) ensureCatalogForReadyJobs(ctx context.Context) error {
 			}); err != nil {
 				return err
 			}
+			if err := s.syncDerivedForBlog(ctx, job.ArtifactDir, job.ID); err != nil {
+				return err
+			}
 			continue
 		}
 		if err != nil {
 			return err
 		}
+		if err := s.syncDerivedForBlog(ctx, job.ArtifactDir, job.ID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Service) syncDerivedForBlog(ctx context.Context, artifactDir, jobID string) error {
+	blog, err := s.Store.GetBlogCatalogByJobID(ctx, jobID)
+	if err != nil {
+		return err
+	}
+	preview, langs := blogPreviewAndLanguages(artifactDir)
+	payload, _ := json.Marshal(langs)
+	if err := s.Store.UpsertBlogCatalogDerived(ctx, blog.ID, preview, string(payload)); err != nil {
+		return err
+	}
+	_ = s.syncContentCacheForBlog(ctx, blog.ID, artifactDir)
+	return nil
+}
+
+func (s *Service) syncContentCacheForBlog(ctx context.Context, blogID, artifactDir string) error {
+	if raw, err := os.ReadFile(filepath.Join(artifactDir, "final.md")); err == nil {
+		_ = s.Store.UpsertBlogContentCache(ctx, db.BlogContentCache{
+			BlogID:    blogID,
+			Language:  OriginalLanguage,
+			Markdown:  string(raw),
+			UpdatedAt: time.Now().UTC(),
+		})
+	}
+	matches, _ := filepath.Glob(filepath.Join(artifactDir, "final.*.md"))
+	for _, path := range matches {
+		base := filepath.Base(path)
+		if base == "final.md" {
+			continue
+		}
+		lang := strings.TrimSuffix(strings.TrimPrefix(base, "final."), ".md")
+		lang = normalizeLanguage(lang)
+		if lang == "" {
+			continue
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		_ = s.Store.UpsertBlogContentCache(ctx, db.BlogContentCache{
+			BlogID:    blogID,
+			Language:  lang,
+			Markdown:  string(raw),
+			UpdatedAt: time.Now().UTC(),
+		})
 	}
 	return nil
 }
@@ -419,6 +490,10 @@ func (s *Service) listAllBlogViews(ctx context.Context) ([]BlogView, error) {
 	if err != nil {
 		return nil, err
 	}
+	cachedContent, err := s.Store.ListBlogContentCache(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	jobByID := make(map[string]db.Job, len(jobs))
 	for _, job := range jobs {
@@ -433,6 +508,11 @@ func (s *Service) listAllBlogViews(ctx context.Context) ([]BlogView, error) {
 		key := item.BlogID + "::" + normalizeLanguage(item.Language)
 		overrideByKey[key] = item
 	}
+	cacheByKey := make(map[string]db.BlogContentCache, len(cachedContent))
+	for _, item := range cachedContent {
+		key := item.BlogID + "::" + normalizeLanguage(item.Language)
+		cacheByKey[key] = item
+	}
 
 	out := make([]BlogView, 0, len(catalog))
 	for _, item := range catalog {
@@ -440,7 +520,7 @@ func (s *Service) listAllBlogViews(ctx context.Context) ([]BlogView, error) {
 		if !ok {
 			continue
 		}
-		languages, err := s.loadLanguageContents(job, item.ID, overrideByKey)
+		languages, err := s.loadLanguageContents(job, item.ID, overrideByKey, cacheByKey)
 		if err != nil {
 			return nil, err
 		}
@@ -468,7 +548,7 @@ func (s *Service) listAllBlogViews(ctx context.Context) ([]BlogView, error) {
 	return out, nil
 }
 
-func (s *Service) loadLanguageContents(job db.Job, blogID string, overrideByKey map[string]db.BlogContentOverride) ([]BlogLanguageContent, error) {
+func (s *Service) loadLanguageContents(job db.Job, blogID string, overrideByKey map[string]db.BlogContentOverride, cacheByKey map[string]db.BlogContentCache) ([]BlogLanguageContent, error) {
 	entries := make(map[string]BlogLanguageContent)
 
 	originalPath := filepath.Join(job.ArtifactDir, "final.md")
@@ -516,6 +596,17 @@ func (s *Service) loadLanguageContents(job db.Job, blogID string, overrideByKey 
 			Language:  lang,
 			Markdown:  ov.Markdown,
 			UpdatedAt: ov.UpdatedAt,
+		}
+	}
+	for key, cv := range cacheByKey {
+		if !strings.HasPrefix(key, blogID+"::") {
+			continue
+		}
+		lang := normalizeLanguage(cv.Language)
+		entries[lang] = BlogLanguageContent{
+			Language:  lang,
+			Markdown:  cv.Markdown,
+			UpdatedAt: cv.UpdatedAt,
 		}
 	}
 
@@ -636,6 +727,32 @@ func blogPreviewAndLanguages(artifactDir string) (string, []string) {
 	}
 	sort.Strings(langs)
 	return preview, langs
+}
+
+func parseLanguagesJSON(raw string) []string {
+	payload := strings.TrimSpace(raw)
+	if payload == "" {
+		return nil
+	}
+	var langs []string
+	if err := json.Unmarshal([]byte(payload), &langs); err != nil {
+		return nil
+	}
+	out := make([]string, 0, len(langs))
+	seen := map[string]struct{}{}
+	for _, l := range langs {
+		k := normalizeLanguage(l)
+		if k == "" {
+			continue
+		}
+		if _, ok := seen[k]; ok {
+			continue
+		}
+		seen[k] = struct{}{}
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func sortedBlogs(in []BlogView) []BlogView {

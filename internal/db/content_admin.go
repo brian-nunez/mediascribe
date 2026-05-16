@@ -44,6 +44,8 @@ SELECT
   bc.title,
   COALESCE(bc.section_id, ''),
   COALESCE(sec.name, ''),
+  COALESCE(bcd.preview_text, ''),
+  COALESCE(bcd.languages_json, ''),
   COALESCE(j.source_url, ''),
   COALESCE(j.source_path, ''),
   COALESCE(j.status, ''),
@@ -55,6 +57,7 @@ SELECT
 FROM blog_catalog bc
 LEFT JOIN blog_publish_state bps ON bps.blog_id = bc.id
 LEFT JOIN sections sec ON sec.id = bc.section_id
+LEFT JOIN blog_catalog_derived bcd ON bcd.blog_id = bc.id
 LEFT JOIN jobs j ON j.id = bc.job_id
 WHERE bc.deleted = 0
   AND COALESCE(bps.published, 0) = 1
@@ -75,6 +78,8 @@ LIMIT ? OFFSET ?`, sectionID, limit, offset)
 			&item.Title,
 			&item.SectionID,
 			&item.SectionName,
+			&item.PreviewText,
+			&item.LanguagesJSON,
 			&item.SourceURL,
 			&item.SourcePath,
 			&item.Status,
@@ -114,6 +119,8 @@ SELECT
   bc.title,
   COALESCE(bc.section_id, ''),
   COALESCE(sec.name, ''),
+  COALESCE(bcd.preview_text, ''),
+  COALESCE(bcd.languages_json, ''),
   COALESCE(j.source_url, ''),
   COALESCE(j.source_path, ''),
   COALESCE(j.status, ''),
@@ -125,6 +132,7 @@ SELECT
 FROM blog_catalog bc
 LEFT JOIN blog_publish_state bps ON bps.blog_id = bc.id
 LEFT JOIN sections sec ON sec.id = bc.section_id
+LEFT JOIN blog_catalog_derived bcd ON bcd.blog_id = bc.id
 LEFT JOIN jobs j ON j.id = bc.job_id
 WHERE bc.deleted = 0
   AND COALESCE(bps.published, 0) = 1
@@ -144,6 +152,8 @@ LIMIT ? OFFSET ?`, limit, offset)
 			&item.Title,
 			&item.SectionID,
 			&item.SectionName,
+			&item.PreviewText,
+			&item.LanguagesJSON,
 			&item.SourceURL,
 			&item.SourcePath,
 			&item.Status,

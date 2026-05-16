@@ -119,6 +119,7 @@
       loading: false,
       sectionFilter: '',
       selectedLanguage: 'all',
+      languageCounts: { all: 0 },
       navOpen: false,
     };
 
@@ -209,11 +210,16 @@
 
     function renderLanguageFilter() {
       const counts = new Map();
-      counts.set('all', state.items.length);
-      for (const blog of state.items) {
-        const langs = Array.isArray(blog.languages) ? blog.languages : [];
-        for (const lang of langs) counts.set(lang, (counts.get(lang) || 0) + 1);
+      const apiCounts = state.languageCounts || {};
+      let total = 0;
+      for (const [k, v] of Object.entries(apiCounts)) {
+        const key = String(k || '').toLowerCase();
+        const n = Number(v || 0);
+        if (!key || key === 'all' || !Number.isFinite(n)) continue;
+        counts.set(key, n);
+        total += n;
       }
+      counts.set('all', total);
       const langs = Array.from(counts.keys()).filter(k => k !== 'all').sort();
       languageListEl.innerHTML = ['all', ...langs]
         .filter((lang) => lang === 'all' || (counts.get(lang) || 0) > 0)
@@ -288,6 +294,7 @@
       state.items = state.items.concat(Array.isArray(page.items) ? page.items : []);
       state.offset = Number(page.next_offset || state.items.length);
       state.total = Number(page.total || state.total);
+      state.languageCounts = page.language_counts || {};
       state.hasMore = Boolean(page.has_more);
       state.loading = false;
       renderSections();
@@ -321,23 +328,18 @@
 
       searchDropdownEl.classList.remove('hidden');
       for (const item of state.searchResults) {
-        const linkedBlog = state.items.find(b => b.job_id === item.job_id);
-        if (!linkedBlog) continue;
         const row = document.createElement('a');
-        row.href = `/blog/${encodeURIComponent(linkedBlog.id)}?lang=en&chunk=${encodeURIComponent(item.chunk_index)}&q=${encodeURIComponent(state.query.trim())}`;
+        row.href = `/blog/${encodeURIComponent(item.blog_id)}?lang=en&q=${encodeURIComponent(state.query.trim())}`;
         row.className = 'block rounded-lg px-2 py-2 text-sm hover:bg-slate-100';
         row.innerHTML = `
           <div class="flex items-center justify-between gap-2">
-            <p class="font-semibold text-slate-800">${escapeHTML(linkedBlog.title || 'Untitled')}</p>
-            <span class="text-[10px] uppercase tracking-wide text-slate-500">${escapeHTML(linkedBlog.section_name || 'Unsectioned')}</span>
+            <p class="font-semibold text-slate-800">${escapeHTML(item.title || 'Untitled')}</p>
+            <span class="text-[10px] uppercase tracking-wide text-slate-500">${escapeHTML(item.section_name || 'Unsectioned')}</span>
           </div>
-          <p class="mt-1 text-xs text-slate-600">${escapeHTML(searchSnippet(linkedBlog.preview || ''))}</p>
-          <p class="mt-1 text-[11px] text-slate-500">Best match at ${timeLabel(item.start_time_seconds)}-${timeLabel(item.end_time_seconds)}</p>
+          <p class="mt-1 text-xs text-slate-600">${escapeHTML(searchSnippet(item.preview || ''))}</p>
+          <p class="mt-1 text-[11px] text-slate-500">Best match at ${timeLabel(item.match_start_seconds)}-${timeLabel(item.match_end_seconds)}</p>
         `;
         searchDropdownEl.appendChild(row);
-      }
-      if (!searchDropdownEl.children.length) {
-        searchDropdownEl.innerHTML = '<p class="px-2 py-3 text-sm text-slate-500">No loaded blog matches yet. Scroll feed to load more blogs.</p>';
       }
     }
 
@@ -353,22 +355,7 @@
       if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
       const payload = await res.json();
       const raw = Array.isArray(payload.results) ? payload.results : [];
-      const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
-      const mapped = raw
-        .map(item => ({ ...item }))
-        .filter(item => {
-          if (!terms.length) return true;
-          const hay = `${String(item.job_title || '').toLowerCase()} ${String(item.content || '').toLowerCase()}`;
-          return terms.some(t => hay.includes(t));
-        });
-
-      const bestByJob = new Map();
-      for (const item of mapped) {
-        if (!item.job_id) continue;
-        const prev = bestByJob.get(item.job_id);
-        if (!prev || Number(item.score || 0) > Number(prev.score || 0)) bestByJob.set(item.job_id, item);
-      }
-      state.searchResults = Array.from(bestByJob.values()).sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
+      state.searchResults = raw;
       renderSearchDropdown();
     }
 

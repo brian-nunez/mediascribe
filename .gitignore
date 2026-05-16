@@ -2,6 +2,7 @@
 data/*.db
 data/*.db-*
 artifacts/jobs/*
+artifacts-old/jobs/*
 !artifacts/jobs/.gitkeep
 
 # OS / editor

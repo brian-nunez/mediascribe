@@ -124,19 +124,21 @@ type BlogContentOverride struct {
 }
 
 type PublicBlogRow struct {
-	BlogID      string
-	JobID       string
-	Title       string
-	SectionID   string
-	SectionName string
-	SourceURL   string
-	SourcePath  string
-	Status      string
-	ArtifactDir string
-	BlogUpdated time.Time
-	BlogCreated time.Time
-	JobUpdated  time.Time
-	JobCreated  time.Time
+	BlogID        string
+	JobID         string
+	Title         string
+	SectionID     string
+	SectionName   string
+	PreviewText   string
+	LanguagesJSON string
+	SourceURL     string
+	SourcePath    string
+	Status        string
+	ArtifactDir   string
+	BlogUpdated   time.Time
+	BlogCreated   time.Time
+	JobUpdated    time.Time
+	JobCreated    time.Time
 }
 
 type AdminUser struct {
@@ -187,4 +189,9 @@ type JobBatchItem struct {
 	ErrorMessage string    `json:"error_message,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type LanguageCount struct {
+	Language string `json:"language"`
+	Count    int    `json:"count"`
 }

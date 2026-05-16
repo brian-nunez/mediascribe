@@ -35,6 +35,7 @@ func (h Handler) Routes() http.Handler {
 	mux.HandleFunc("/api/admin/catalog", h.handleAdminCatalog)
 	mux.HandleFunc("/api/admin/blogs/", h.handleAdminBlogSubroutes)
 	mux.HandleFunc("/api/admin/embeddings/rebuild", h.handleAdminEmbeddingsRebuild)
+	mux.HandleFunc("/api/admin/artifacts/sync", h.handleAdminArtifactSync)
 	mux.HandleFunc("/api/admin/batches", h.handleAdminBatches)
 	mux.HandleFunc("/api/admin/batches/", h.handleAdminBatchByID)
 	mux.HandleFunc("/api/admin/channel/videos", h.handleAdminChannelVideos)
@@ -129,6 +130,22 @@ func (h Handler) handleAdminEmbeddingsRebuild(w http.ResponseWriter, r *http.Req
 	default:
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 	}
+}
+
+func (h Handler) handleAdminArtifactSync(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requireAdmin(w, r); !ok {
+		return
+	}
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	out, err := h.Jobs.SyncArtifactMetadata(r.Context())
+	if err != nil {
+		handleErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"result": out})
 }
 
 func (h Handler) handleAdminBatches(w http.ResponseWriter, r *http.Request) {
@@ -569,7 +586,7 @@ func (h Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
 		limit = parsed
 	}
 
-	results, err := h.Jobs.SearchChunks(r.Context(), query, limit)
+	results, err := h.Jobs.SearchPublicBlogs(r.Context(), query, limit)
 	if err != nil {
 		handleErr(w, err)
 		return
