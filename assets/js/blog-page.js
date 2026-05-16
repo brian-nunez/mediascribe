@@ -76,9 +76,9 @@
           : '';
 
         contentEl.innerHTML = `
-          <span class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--primary)]">${escapeHTML(blog.section_name || 'Unsectioned')}</span>
-          <h1 class="headline mt-2 text-[2.45rem] leading-[1.08] text-slate-900">${escapeHTML(blog.title || 'Untitled')}</h1>
-          <div class="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+          <span class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--primary)]" data-blog-section>${escapeHTML(blog.section_name || 'Unsectioned')}</span>
+          <h1 class="headline mt-2 text-[2.45rem] leading-[1.08] text-slate-900" data-blog-title>${escapeHTML(blog.title || 'Untitled')}</h1>
+          <div class="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-500" data-blog-meta>
             <span>Job ${(blog.job_id || '').slice(0, 8)}</span>
             <span>•</span>
             <span>${escapeHTML(dateLabel(blog.updated_at))}</span>
@@ -162,10 +162,23 @@
       }
     }
 
-    async function boot() {
+    function boot() {
       if ('serviceWorker' in navigator) {
         try { await navigator.serviceWorker.register('/sw.js'); } catch (_) {}
       }
+
+      window.addEventListener('pageswap', (event) => {
+        if (!event.viewTransition) return;
+
+        const toUrl = new URL(event.activation.entry.url);
+        // If navigating back to the feed, ensure transition names are set
+        if (toUrl.pathname === '/' || toUrl.pathname === '/index.html') {
+          // Names should already be set via CSS for body[data-page="blog"], 
+          // but we can ensure they are explicitly active if needed.
+          // In this case, CSS takes care of it because it's the blog page.
+        }
+      });
+
       const id = findBlogID();
       if (!id) {
         contentEl.innerHTML = '<p class="text-sm text-red-700">Missing blog id in URL.</p>';

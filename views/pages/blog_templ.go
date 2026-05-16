@@ -41,7 +41,7 @@ func Blog(data BlogViewData) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<body><header class=\"sticky top-0 z-40 border-b border-[var(--line)] bg-[var(--surface)]\"><div class=\"mx-auto flex h-16 w-full max-w-[760px] items-center justify-between px-5\"><a href=\"/\" class=\"brand text-4xl font-black tracking-tight text-[var(--primary)]\">MediaScribe</a> <a href=\"/\" class=\"rounded-full border border-[var(--line)] px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50\">Back to Feed</a></div></header><main class=\"mx-auto max-w-[760px] px-5 py-12\"><article id=\"content\" class=\"rounded-xl border border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<body data-page=\"blog\"><header class=\"sticky top-0 z-40 border-b border-[var(--line)] bg-[var(--surface)]\"><div class=\"mx-auto flex h-16 w-full max-w-[760px] items-center justify-between px-5\"><a href=\"/\" class=\"brand text-4xl font-black tracking-tight text-[var(--primary)]\" data-vt-brand>MediaScribe</a> <a href=\"/\" class=\"rounded-full border border-[var(--line)] px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50\">Back to Feed</a></div></header><main class=\"mx-auto max-w-[760px] px-5 py-12\"><article id=\"content\" class=\"rounded-xl border border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8\" data-blog-shell>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -71,33 +71,33 @@ func Blog(data BlogViewData) templ.Component {
 				}
 			}
 			if data.LoadError == "" && data.Found {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<span class=\"text-xs font-semibold uppercase tracking-[0.2em] text-[var(--primary)]\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<span class=\"text-xs font-semibold uppercase tracking-[0.2em] text-[var(--primary)]\" data-blog-section>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(data.Blog.SectionName)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/blog.templ`, Line: 21, Col: 114}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/blog.templ`, Line: 21, Col: 132}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</span><h1 class=\"headline mt-2 text-[2.45rem] leading-[1.08] text-slate-900\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</span><h1 class=\"headline mt-2 text-[2.45rem] leading-[1.08] text-slate-900\" data-blog-title>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var5 string
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(data.Blog.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/blog.templ`, Line: 22, Col: 94}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/pages/blog.templ`, Line: 22, Col: 110}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</h1><div class=\"mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-500\"><span>Job ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</h1><div class=\"mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-500\" data-blog-meta><span>Job ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
