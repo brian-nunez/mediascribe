@@ -83,6 +83,21 @@ func (s *Service) SearchPublicBlogs(ctx context.Context, query string, limit int
 			continue
 		}
 		usedBlog[s.ID] = struct{}{}
+		preview := strings.TrimSpace(s.Preview)
+		if preview == "" {
+			preview = strings.TrimSpace(r.Content)
+			preview = strings.Join(strings.Fields(preview), " ")
+			if len(preview) > 220 {
+				preview = preview[:220] + "..."
+			}
+			if preview == "" {
+				preview = "No preview available."
+			}
+		}
+		langs := s.Languages
+		if len(langs) == 0 {
+			langs = []string{"en"}
+		}
 		out = append(out, PublicSearchHit{
 			BlogID:      s.ID,
 			JobID:       s.JobID,
@@ -91,8 +106,8 @@ func (s *Service) SearchPublicBlogs(ctx context.Context, query string, limit int
 			SectionName: s.SectionName,
 			SourceURL:   s.SourceURL,
 			SourcePath:  s.SourcePath,
-			Preview:     s.Preview,
-			Languages:   s.Languages,
+			Preview:     preview,
+			Languages:   langs,
 			Score:       r.Score,
 			MatchStart:  r.StartTimeSeconds,
 			MatchEnd:    r.EndTimeSeconds,

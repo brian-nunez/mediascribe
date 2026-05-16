@@ -143,6 +143,12 @@ func (s *Service) ListPublicFeedPage(ctx context.Context, sectionID, language st
 	items := make([]PublicBlogSummary, 0, len(rows))
 	for _, row := range rows {
 		preview, langs := row.PreviewText, parseLanguagesJSON(row.LanguagesJSON)
+		if strings.TrimSpace(preview) == "" {
+			preview = "Technical article generated from source video."
+		}
+		if len(langs) == 0 {
+			langs = []string{"en"}
+		}
 		sectionName := row.SectionName
 		if strings.TrimSpace(sectionName) == "" {
 			sectionName = "Unsectioned"
@@ -539,44 +545,8 @@ func (s *Service) listAllBlogViews(ctx context.Context) ([]BlogView, error) {
 	return out, nil
 }
 
-func (s *Service) loadLanguageContents(job db.Job, blogID string, overrideByKey map[string]db.BlogContentOverride, cacheByKey map[string]db.BlogContentCache) ([]BlogLanguageContent, error) {
+func (s *Service) loadLanguageContents(_ db.Job, blogID string, overrideByKey map[string]db.BlogContentOverride, cacheByKey map[string]db.BlogContentCache) ([]BlogLanguageContent, error) {
 	entries := make(map[string]BlogLanguageContent)
-
-	originalPath := filepath.Join(job.ArtifactDir, "final.md")
-	if raw, err := os.ReadFile(originalPath); err == nil {
-		st, _ := os.Stat(originalPath)
-		entries[OriginalLanguage] = BlogLanguageContent{
-			Language:  OriginalLanguage,
-			Markdown:  string(raw),
-			UpdatedAt: statTimeOrNow(st),
-		}
-	}
-
-	matches, err := filepath.Glob(filepath.Join(job.ArtifactDir, "final.*.md"))
-	if err != nil {
-		return nil, err
-	}
-	for _, path := range matches {
-		base := filepath.Base(path)
-		if base == "final.md" {
-			continue
-		}
-		lang := strings.TrimSuffix(strings.TrimPrefix(base, "final."), ".md")
-		lang = normalizeLanguage(lang)
-		if lang == "" {
-			continue
-		}
-		raw, err := os.ReadFile(path)
-		if err != nil {
-			continue
-		}
-		st, _ := os.Stat(path)
-		entries[lang] = BlogLanguageContent{
-			Language:  lang,
-			Markdown:  string(raw),
-			UpdatedAt: statTimeOrNow(st),
-		}
-	}
 
 	for key, ov := range overrideByKey {
 		if !strings.HasPrefix(key, blogID+"::") {
@@ -615,13 +585,6 @@ func (s *Service) loadLanguageContents(job db.Job, blogID string, overrideByKey 
 		return out[i].Language < out[j].Language
 	})
 	return out, nil
-}
-
-func statTimeOrNow(info os.FileInfo) time.Time {
-	if info == nil {
-		return time.Now().UTC()
-	}
-	return info.ModTime().UTC()
 }
 
 func normalizeLanguage(value string) string {

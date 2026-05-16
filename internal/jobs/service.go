@@ -233,15 +233,6 @@ func (s *Service) GetJob(ctx context.Context, jobID string) (db.Job, error) {
 }
 
 func (s *Service) GetTranscript(ctx context.Context, jobID string) (string, error) {
-	job, err := s.Store.GetJob(ctx, jobID)
-	if err != nil {
-		return "", err
-	}
-	transcriptPath := filepath.Join(job.ArtifactDir, "transcript.json")
-	if data, err := os.ReadFile(transcriptPath); err == nil {
-		return string(data), nil
-	}
-
 	chunks, err := s.Store.ListTranscriptChunks(ctx, jobID)
 	if err != nil {
 		return "", err

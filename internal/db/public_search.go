@@ -31,8 +31,36 @@ SELECT
   bc.title,
   COALESCE(bc.section_id, ''),
   COALESCE(sec.name, ''),
-  COALESCE(bcd.preview_text, ''),
-  COALESCE(bcd.languages_json, ''),
+  COALESCE(
+    NULLIF(NULLIF(TRIM(bcd.preview_text), ''), 'No preview available.'),
+    (
+      SELECT SUBSTR(TRIM(REPLACE(REPLACE(bcc.markdown, CHAR(10), ' '), CHAR(13), ' ')), 1, 220)
+      FROM blog_content_cache bcc
+      WHERE bcc.blog_id = bc.id AND LOWER(bcc.language) = 'en'
+      LIMIT 1
+    ),
+    (
+      SELECT SUBSTR(TRIM(REPLACE(REPLACE(bcc.markdown, CHAR(10), ' '), CHAR(13), ' ')), 1, 220)
+      FROM blog_content_cache bcc
+      WHERE bcc.blog_id = bc.id
+      ORDER BY CASE WHEN LOWER(bcc.language) = 'en' THEN 0 ELSE 1 END, bcc.updated_at DESC
+      LIMIT 1
+    ),
+    ''
+  ),
+  COALESCE(
+    bcd.languages_json,
+    (
+      SELECT json_group_array(lang.language)
+      FROM (
+        SELECT DISTINCT boe.language AS language
+        FROM blog_output_embeddings boe
+        WHERE boe.job_id = bc.job_id
+        ORDER BY boe.language
+      ) lang
+    ),
+    '[]'
+  ),
   COALESCE(j.source_url, ''),
   COALESCE(j.source_path, ''),
   COALESCE(j.status, ''),
