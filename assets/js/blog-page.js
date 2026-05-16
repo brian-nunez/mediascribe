@@ -1,4 +1,4 @@
-    marked.setOptions({ gfm: true, breaks: true });
+    marked.setOptions({ gfm: true, breaks: false });
 
     const contentEl = document.getElementById('content');
 
@@ -99,19 +99,26 @@
         `;
 
         const articleEl = document.getElementById('article');
-        if (articleEl && typeof renderMathInElement === 'function') {
-          renderMathInElement(articleEl, {
-            throwOnError: false,
-            strict: 'ignore',
-            delimiters: [
-              { left: '$$', right: '$$', display: true },
-              { left: '$', right: '$', display: false },
-              { left: '\\\\[', right: '\\\\]', display: true },
-              { left: '\\\\(', right: '\\\\)', display: false },
-            ],
-            ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
-          });
-        }
+        let mathRetries = 0;
+        const initMath = () => {
+          if (articleEl && typeof renderMathInElement === 'function') {
+            renderMathInElement(articleEl, {
+              throwOnError: false,
+              strict: 'ignore',
+              delimiters: [
+                { left: '$$', right: '$$', display: true },
+                { left: '$', right: '$', display: false },
+                { left: '\\\\[', right: '\\\\]', display: true },
+                { left: '\\\\(', right: '\\\\)', display: false },
+              ],
+              ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+            });
+          } else if (articleEl && mathRetries < 20) {
+            mathRetries++;
+            setTimeout(initMath, 100);
+          }
+        };
+        initMath();
         renderMermaidBlocks(articleEl);
 
         contentEl.querySelectorAll('[data-lang]').forEach(btn => {
@@ -162,9 +169,11 @@
       }
     }
 
-    function boot() {
+    async function boot() {
       if ('serviceWorker' in navigator) {
-        try { await navigator.serviceWorker.register('/sw.js'); } catch (_) {}
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
       }
 
       window.addEventListener('pageswap', (event) => {
@@ -175,7 +184,6 @@
         if (toUrl.pathname === '/' || toUrl.pathname === '/index.html') {
           // Names should already be set via CSS for body[data-page="blog"], 
           // but we can ensure they are explicitly active if needed.
-          // In this case, CSS takes care of it because it's the blog page.
         }
       });
 
