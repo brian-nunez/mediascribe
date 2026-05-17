@@ -300,7 +300,7 @@ func Blog(data BlogViewData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</article></main><footer class=\"mt-10 border-t border-[var(--line)] bg-white\"><div class=\"mx-auto flex max-w-[760px] flex-col items-center gap-3 px-5 py-8 text-center\"><h3 class=\"brand text-3xl font-semibold text-slate-500/70\">MediaScribe</h3><p class=\"text-sm text-slate-600\">MediaScribe, written from video and developed by Brian Nunez · <a class=\"text-[var(--primary)] underline\" href=\"https://github.com/brian-nunez\" target=\"_blank\" rel=\"noopener noreferrer\">github.com/brian-nunez</a></p></div></footer>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</article></main><footer class=\"mt-10 border-t border-[var(--line)] bg-white\"><div class=\"mx-auto flex max-w-[760px] flex-col items-center gap-3 px-5 py-8 text-center\"><h3 class=\"brand text-3xl font-semibold text-slate-500/90\">MediaScribe</h3><p class=\"text-sm text-slate-600\">MediaScribe, written from video and developed by Brian Nunez · <a class=\"text-[var(--primary)] underline\" href=\"https://github.com/brian-nunez\" target=\"_blank\" rel=\"noopener noreferrer\">github.com/brian-nunez</a></p></div></footer>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

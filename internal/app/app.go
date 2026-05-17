@@ -68,6 +68,10 @@ func Run() error {
 		TranslationModelBaseURL: cfg.DefaultTranslateModelBaseURL,
 		EnableTranslation:       cfg.EnableTranslation,
 	})
+
+	// Resume any jobs or batches that were interrupted by a previous crash/stop
+	jobSvc.ResumeInterruptedProcesses(ctx)
+
 	go func() {
 		if err := jobSvc.BackfillOutputEmbeddings(context.Background()); err != nil {
 			log.Printf("output embedding backfill failed: %v", err)
