@@ -169,6 +169,57 @@ mark {
   max-height: 320px;
 }
 
+.highlight-share-bar {
+  position: absolute;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid #111827;
+  border-radius: 0.5rem;
+  background: #111827;
+  padding: 0.25rem;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.22);
+}
+
+.highlight-share-bar[hidden] {
+  display: none;
+}
+
+.highlight-share-bar::after {
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  width: 10px;
+  height: 10px;
+  content: "";
+  background: #111827;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.highlight-share-bar button {
+  position: relative;
+  z-index: 1;
+  border-radius: 0.35rem;
+  padding: 0.35rem 0.55rem;
+  color: #f8fafc;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.highlight-share-bar button:hover,
+.highlight-share-bar button:focus-visible {
+  background: rgba(255, 255, 255, 0.14);
+  outline: none;
+}
+
+.highlight-share-bar button:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   @view-transition {
     navigation: auto;

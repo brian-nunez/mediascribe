@@ -25,6 +25,41 @@
       return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
     }
 
+    function normalizeSelectedText(value) {
+      return String(value || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function encodeQuote(value) {
+      const bytes = new TextEncoder().encode(value);
+      let binary = '';
+      bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+      return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
+    }
+
+    function buildHighlightedShareURL(text) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('quote');
+      url.searchParams.set('quote_b64', encodeQuote(normalizeSelectedText(text).slice(0, 280)));
+      url.hash = '';
+      return url.toString();
+    }
+
+    function copyToClipboard(value) {
+      if (navigator.clipboard && window.isSecureContext) {
+        return navigator.clipboard.writeText(value);
+      }
+      const input = document.createElement('textarea');
+      input.value = value;
+      input.setAttribute('readonly', '');
+      input.style.position = 'fixed';
+      input.style.top = '-9999px';
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      input.remove();
+      return Promise.resolve();
+    }
+
     function sourceHTML(blog) {
       const source = blog.source_url || blog.source_path || '';
       if (!source) return '<span class="text-slate-500">unavailable</span>';
@@ -135,6 +170,128 @@
       renderLanguage();
     }
 
+    function initHighlightActions() {
+      document.querySelectorAll('.highlight-share-bar').forEach((el) => el.remove());
+
+      function currentArticle() {
+        return document.getElementById('article');
+      }
+
+      if (!currentArticle()) return;
+
+      let selectedText = '';
+      const toolbar = document.createElement('div');
+      toolbar.className = 'highlight-share-bar';
+      toolbar.setAttribute('role', 'toolbar');
+      toolbar.setAttribute('aria-label', 'Highlighted text actions');
+      toolbar.hidden = true;
+      document.body.appendChild(toolbar);
+
+      const actions = [
+        {
+          id: 'share',
+          label: 'Share',
+          run: async (text) => {
+            const url = buildHighlightedShareURL(text);
+            const title = document.querySelector('[data-blog-title]')?.textContent?.trim() || document.title;
+            if (navigator.share) {
+              await navigator.share({ title, text: normalizeSelectedText(text), url });
+              return 'Shared';
+            }
+            await copyToClipboard(url);
+            return 'Link copied';
+          },
+        },
+        {
+          id: 'copy-link',
+          label: 'Copy link',
+          run: async (text) => {
+            await copyToClipboard(buildHighlightedShareURL(text));
+            return 'Link copied';
+          },
+        },
+      ];
+
+      function renderActions() {
+        toolbar.innerHTML = actions.map((action) => (
+          `<button type="button" data-highlight-action="${escapeHTML(action.id)}">${escapeHTML(action.label)}</button>`
+        )).join('');
+        toolbar.querySelectorAll('[data-highlight-action]').forEach((button) => {
+          button.addEventListener('click', async () => {
+            const action = actions.find((item) => item.id === button.getAttribute('data-highlight-action'));
+            if (!action || !selectedText) return;
+            const original = button.textContent;
+            button.disabled = true;
+            try {
+              const message = await action.run(selectedText);
+              button.textContent = message || original;
+              setTimeout(() => { button.textContent = original; }, 1400);
+            } catch (_) {
+              button.textContent = 'Try again';
+              setTimeout(() => { button.textContent = original; }, 1400);
+            } finally {
+              button.disabled = false;
+            }
+          });
+        });
+      }
+
+      function hideToolbar() {
+        toolbar.hidden = true;
+      }
+
+      function selectionInsideArticle(selection) {
+        const articleEl = currentArticle();
+        if (!selection || selection.rangeCount === 0) return false;
+        const range = selection.getRangeAt(0);
+        return articleEl ? articleEl.contains(range.commonAncestorContainer) : false;
+      }
+
+      function positionToolbar(range) {
+        const rect = range.getBoundingClientRect();
+        if (!rect || (rect.width === 0 && rect.height === 0)) {
+          hideToolbar();
+          return;
+        }
+        toolbar.hidden = false;
+        const toolbarRect = toolbar.getBoundingClientRect();
+        const top = window.scrollY + rect.top - toolbarRect.height - 10;
+        const left = window.scrollX + rect.left + (rect.width / 2) - (toolbarRect.width / 2);
+        const margin = 8;
+        const maxLeft = window.scrollX + document.documentElement.clientWidth - toolbarRect.width - margin;
+        toolbar.style.top = `${Math.max(window.scrollY + margin, top)}px`;
+        toolbar.style.left = `${Math.max(window.scrollX + margin, Math.min(left, maxLeft))}px`;
+      }
+
+      function updateToolbar() {
+        const selection = window.getSelection();
+        const text = normalizeSelectedText(selection ? selection.toString() : '');
+        if (!text || text.length < 2 || !selectionInsideArticle(selection)) {
+          hideToolbar();
+          return;
+        }
+        selectedText = text;
+        positionToolbar(selection.getRangeAt(0));
+      }
+
+      renderActions();
+      toolbar.addEventListener('mousedown', (event) => {
+        event.preventDefault();
+      });
+      document.addEventListener('selectionchange', () => {
+        window.requestAnimationFrame(updateToolbar);
+      });
+      window.addEventListener('resize', hideToolbar);
+      window.addEventListener('scroll', hideToolbar, { passive: true });
+      document.addEventListener('mousedown', (event) => {
+        const articleEl = currentArticle();
+        if (!toolbar.contains(event.target) && (!articleEl || !articleEl.contains(event.target))) hideToolbar();
+      });
+      document.addEventListener('keyup', updateToolbar);
+      document.addEventListener('mouseup', updateToolbar);
+      document.addEventListener('touchend', () => setTimeout(updateToolbar, 80));
+    }
+
     async function renderMermaidBlocks(articleEl) {
       if (!articleEl) return;
       const blocks = articleEl.querySelectorAll('pre > code.language-mermaid, pre > code.lang-mermaid');
@@ -203,6 +360,7 @@
           return;
         }
         renderBlog(blog);
+        initHighlightActions();
       } catch (err) {
         contentEl.innerHTML = `<p class="text-sm text-red-700">Failed to load blog: ${escapeHTML(err.message)}</p>`;
       }

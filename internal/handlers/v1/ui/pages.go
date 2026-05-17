@@ -1,6 +1,7 @@
 package uihandlers
 
 import (
+	"encoding/base64"
 	"errors"
 	"net/http"
 	"strconv"
@@ -72,6 +73,8 @@ func (h Handlers) BlogHandler(c echo.Context) error {
 		SelectedLanguage: c.QueryParam("lang"),
 		SearchQuery:      c.QueryParam("q"),
 		Chunk:            c.QueryParam("chunk"),
+		ShareQuote:       shareQuoteParam(c),
+		AbsoluteURL:      absoluteRequestURL(c),
 	}
 	if blogID == "" {
 		c.Response().Status = http.StatusBadRequest
@@ -97,6 +100,44 @@ func (h Handlers) BlogHandler(c echo.Context) error {
 	data.Blog = blog
 	data.Found = true
 	return render(c, pages.Blog(data), "blog_page_loaded")
+}
+
+func shareQuoteParam(c echo.Context) string {
+	encoded := strings.TrimSpace(c.QueryParam("quote_b64"))
+	if encoded == "" {
+		return c.QueryParam("quote")
+	}
+	decoded, err := base64.RawURLEncoding.DecodeString(encoded)
+	if err != nil {
+		return c.QueryParam("quote")
+	}
+	return string(decoded)
+}
+
+func absoluteRequestURL(c echo.Context) string {
+	req := c.Request()
+	if req == nil {
+		return ""
+	}
+	scheme := req.Header.Get("X-Forwarded-Proto")
+	if scheme == "" {
+		scheme = req.URL.Scheme
+	}
+	if scheme == "" {
+		if req.TLS != nil {
+			scheme = "https"
+		} else {
+			scheme = "http"
+		}
+	}
+	host := req.Header.Get("X-Forwarded-Host")
+	if host == "" {
+		host = req.Host
+	}
+	if host == "" {
+		return ""
+	}
+	return scheme + "://" + host + req.URL.RequestURI()
 }
 
 func (h Handlers) AdminDashboardHandler(c echo.Context) error {

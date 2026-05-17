@@ -69,7 +69,7 @@ templ SplashLoader() {
 	</script>
 }
 
-templ BlogLayout(title string) {
+templ BlogLayout(head BlogHeadData) {
 	<!doctype html>
 	<html lang="en">
 		<head>
@@ -82,7 +82,18 @@ templ BlogLayout(title string) {
 			<link rel="manifest" href="/manifest.webmanifest"/>
 			<link rel="icon" href="/icons/icon-192.svg" type="image/svg+xml"/>
 			<link rel="apple-touch-icon" href="/icons/icon-192.svg"/>
-			<title>{ title }</title>
+			<title>{ head.Title }</title>
+			<meta name="description" content={ head.Description }/>
+			<meta property="og:type" content="article"/>
+			<meta property="og:site_name" content="MediaScribe"/>
+			<meta property="og:title" content={ head.Title }/>
+			<meta property="og:description" content={ head.Description }/>
+			if head.URL != "" {
+				<meta property="og:url" content={ head.URL }/>
+			}
+			<meta name="twitter:card" content="summary"/>
+			<meta name="twitter:title" content={ head.Title }/>
+			<meta name="twitter:description" content={ head.Description }/>
 			<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 			<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"/>
 			<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>

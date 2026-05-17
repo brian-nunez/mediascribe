@@ -31,8 +31,16 @@ type BlogViewData struct {
 	SelectedLanguage string        `json:"selected_language"`
 	SearchQuery      string        `json:"search_query,omitempty"`
 	Chunk            string        `json:"chunk,omitempty"`
+	ShareQuote       string        `json:"share_quote,omitempty"`
+	AbsoluteURL      string        `json:"absolute_url,omitempty"`
 	Found            bool          `json:"found"`
 	LoadError        string        `json:"load_error,omitempty"`
+}
+
+type BlogHeadData struct {
+	Title       string
+	Description string
+	URL         string
 }
 
 func blogPageTitle(data BlogViewData) string {
@@ -40,6 +48,59 @@ func blogPageTitle(data BlogViewData) string {
 		return data.Blog.Title + " | MediaScribe"
 	}
 	return "MediaScribe | Blog"
+}
+
+func blogHeadData(data BlogViewData) BlogHeadData {
+	title := blogPageTitle(data)
+	description := "MediaScribe blog"
+	if data.Found {
+		if quote := cleanShareQuote(data.ShareQuote); quote != "" {
+			description = quote
+		} else {
+			description = markdownPreviewText(selectedBlogLanguage(data).Markdown)
+		}
+		if description == "" {
+			description = "Read this MediaScribe blog."
+		}
+	}
+	return BlogHeadData{
+		Title:       title,
+		Description: description,
+		URL:         strings.TrimSpace(data.AbsoluteURL),
+	}
+}
+
+func cleanShareQuote(value string) string {
+	value = strings.Join(strings.Fields(strings.TrimSpace(value)), " ")
+	return truncateText(value, 280)
+}
+
+func cleanPreviewText(value string) string {
+	value = strings.Join(strings.Fields(strings.TrimSpace(value)), " ")
+	return truncateText(value, 220)
+}
+
+func markdownPreviewText(value string) string {
+	replacer := strings.NewReplacer(
+		"#", "",
+		"`", "",
+		"*", "",
+		"_", "",
+		"[", "",
+		"]", "",
+		"(", "",
+		")", "",
+		">", "",
+	)
+	return cleanPreviewText(replacer.Replace(value))
+}
+
+func truncateText(value string, limit int) string {
+	runes := []rune(value)
+	if limit <= 0 || len(runes) <= limit {
+		return value
+	}
+	return strings.TrimSpace(string(runes[:limit])) + "..."
 }
 
 var markdownRenderer = goldmark.New(
