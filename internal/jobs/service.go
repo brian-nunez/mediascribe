@@ -729,6 +729,30 @@ func (s *Service) setEmbeddingRebuildFailure(err error) {
 	s.embeddingRebuild.UpdatedAt = &done
 }
 
+func (s *Service) ResumeInterruptedProcesses(ctx context.Context) {
+	// Resume individual jobs
+	jobs, err := s.Store.ListJobs(ctx)
+	if err == nil {
+		for _, job := range jobs {
+			if job.Status == "queued" || job.Status == "running" {
+				log.Printf("resuming interrupted job %s (status: %s)", job.ID, job.Status)
+				s.start(job.ID)
+			}
+		}
+	}
+
+	// Resume batches
+	batches, err := s.Store.ListJobBatches(ctx)
+	if err == nil {
+		for _, batch := range batches {
+			if batch.Status == "queued" || batch.Status == "running" || batch.Status == "waiting" {
+				log.Printf("resuming interrupted batch %s (status: %s)", batch.ID, batch.Status)
+				s.startBatchProcessor(batch.ID)
+			}
+		}
+	}
+}
+
 func (s *Service) start(jobID string) {
 	s.mu.Lock()
 	if _, exists := s.running[jobID]; exists {

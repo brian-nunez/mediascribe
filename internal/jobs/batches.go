@@ -152,9 +152,15 @@ func (s *Service) StartBatch(ctx context.Context, batchID string) error {
 	if err != nil {
 		return err
 	}
-	if batch.Status == "running" {
+
+	s.mu.Lock()
+	_, isRunning := s.runningBatches[batchID]
+	s.mu.Unlock()
+
+	if isRunning {
 		return nil
 	}
+
 	if batch.Status == "complete" {
 		return fmt.Errorf("batch already complete")
 	}
