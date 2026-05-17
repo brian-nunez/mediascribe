@@ -6,6 +6,41 @@ templ AdminDashboard() {
 		  <main class="mx-auto w-[95%] max-w-7xl py-6">
 		    <div id="nav"></div>
 		
+		    <section class="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 shadow-sm">
+		      <h2 class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Global Announcements & Banner</h2>
+		      
+		      <div class="mt-4 grid gap-4 lg:grid-cols-2">
+		        <div>
+		          <label class="text-[11px] font-bold uppercase text-emerald-800">Top Banner (Black Bar)</label>
+		          <div class="mt-1 flex items-center gap-2">
+		            <input type="checkbox" id="banner_enabled" class="rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500" />
+		            <label for="banner_enabled" class="text-xs text-slate-700">Enable Banner</label>
+		          </div>
+		          <input id="banner_text" class="mt-2 w-full rounded-xl border border-emerald-200 bg-white p-3 text-sm text-slate-800 focus:ring-2 focus:ring-emerald-500" placeholder="Limited time offer: 50% off..." />
+		        </div>
+		        
+		        <div>
+		          <label class="text-[11px] font-bold uppercase text-emerald-800">Feed Notice Style</label>
+		          <select id="notice_type" class="mt-1 w-full rounded-xl border border-emerald-200 bg-white p-2.5 text-sm text-slate-800 focus:ring-2 focus:ring-emerald-500">
+		            <option value="info">Information (Blue/Emerald)</option>
+		            <option value="warning">Warning (Amber)</option>
+		            <option value="error">Error (Red)</option>
+		            <option value="success">Success (Green)</option>
+		          </select>
+		        </div>
+		      </div>
+
+		      <div class="mt-4">
+		        <label class="text-[11px] font-bold uppercase text-emerald-800">Feed Notice Content (Supports Emojis & New Lines)</label>
+		        <textarea id="global_message" class="mt-1 w-full rounded-xl border border-emerald-200 bg-white p-3 text-sm text-slate-800 focus:ring-2 focus:ring-emerald-500" placeholder="Type a message to display on the public feed..." rows="3"></textarea>
+		      </div>
+
+		      <div class="mt-4 flex items-center justify-between border-t border-emerald-100 pt-3">
+		        <p id="save_message_status" class="text-xs font-medium text-emerald-600"></p>
+		        <button id="save_message_btn" class="rounded-lg bg-emerald-700 px-6 py-2 text-sm font-semibold text-white hover:bg-emerald-800">Apply All Settings</button>
+		      </div>
+		    </section>
+		
 		    <div class="grid gap-4 md:grid-cols-3">
 		      <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
 		        <p class="text-xs uppercase tracking-wide text-slate-500">Sections</p>

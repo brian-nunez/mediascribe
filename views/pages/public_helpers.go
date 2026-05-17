@@ -19,6 +19,10 @@ type FeedViewData struct {
 	Page             jobs.PublicFeedPage `json:"page"`
 	SelectedSection  string              `json:"selected_section"`
 	SelectedLanguage string              `json:"selected_language"`
+	GlobalMessage    string              `json:"global_message,omitempty"`
+	NoticeType       string              `json:"notice_type,omitempty"`
+	BannerEnabled    bool                `json:"banner_enabled,omitempty"`
+	BannerText       string              `json:"banner_text,omitempty"`
 	LoadError        string              `json:"load_error,omitempty"`
 }
 
@@ -56,6 +60,32 @@ func selectedLanguageID(value string) string {
 		return "all"
 	}
 	return value
+}
+
+func noticeClass(t string) string {
+	switch t {
+	case "warning":
+		return "border-amber-200 bg-amber-50/50"
+	case "error":
+		return "border-red-200 bg-red-50/50"
+	case "success":
+		return "border-emerald-200 bg-emerald-50/50"
+	default:
+		return "border-blue-200 bg-blue-50/50"
+	}
+}
+
+func noticeTextClass(t string) string {
+	switch t {
+	case "warning":
+		return "text-amber-900"
+	case "error":
+		return "text-red-900"
+	case "success":
+		return "text-emerald-900"
+	default:
+		return "text-blue-900"
+	}
 }
 
 func feedMeta(data FeedViewData) string {

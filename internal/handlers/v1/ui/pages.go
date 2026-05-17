@@ -46,6 +46,20 @@ func (h Handlers) HomeHandler(c echo.Context) error {
 		return render(c, pages.Home(data), "home_page_loaded")
 	}
 	data.Page = page
+	if h.Jobs != nil {
+		if msg, err := h.Jobs.GetGlobalSetting(c.Request().Context(), "dashboard_message"); err == nil {
+			data.GlobalMessage = msg
+		}
+		if nType, err := h.Jobs.GetGlobalSetting(c.Request().Context(), "notice_type"); err == nil {
+			data.NoticeType = nType
+		}
+		if bText, err := h.Jobs.GetGlobalSetting(c.Request().Context(), "banner_text"); err == nil {
+			data.BannerText = bText
+		}
+		if bEnabled, err := h.Jobs.GetGlobalSetting(c.Request().Context(), "banner_enabled"); err == nil {
+			data.BannerEnabled = bEnabled == "true"
+		}
+	}
 	return render(c, pages.Home(data), "home_page_loaded")
 }
 

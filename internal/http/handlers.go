@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -38,6 +39,7 @@ func (h Handler) Routes() http.Handler {
 	mux.HandleFunc("/api/admin/batches", h.handleAdminBatches)
 	mux.HandleFunc("/api/admin/batches/", h.handleAdminBatchByID)
 	mux.HandleFunc("/api/admin/channel/videos", h.handleAdminChannelVideos)
+	mux.HandleFunc("/api/admin/settings/", h.handleAdminGlobalSetting)
 
 	mux.HandleFunc("/api/search", h.handleSearch)
 	mux.HandleFunc("/api/locales", h.handleLocales)
@@ -750,6 +752,50 @@ func (h Handler) handleJobSubroutes(w http.ResponseWriter, r *http.Request) {
 	default:
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
 	}
+}
+
+func (h Handler) handleAdminGlobalSetting(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requireAdmin(w, r); !ok {
+		return
+	}
+	key := strings.TrimPrefix(r.URL.Path, "/api/admin/settings/")
+	key = strings.TrimSpace(key)
+	if key == "" {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "missing setting key"})
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		value, err := h.Jobs.GetGlobalSetting(r.Context(), key)
+		if err != nil {
+			handleErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"key": key, "value": value})
+	case http.MethodPut:
+		var req struct {
+			Value string `json:"value"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
+			return
+		}
+		if err := h.Jobs.SetGlobalSetting(ctxOrBackground(r.Context()), key, req.Value); err != nil {
+			handleErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	default:
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+	}
+}
+
+func ctxOrBackground(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {

@@ -775,6 +775,14 @@ func (s *Service) start(jobID string) {
 	}()
 }
 
+func (s *Service) GetGlobalSetting(ctx context.Context, key string) (string, error) {
+	return s.Store.GetGlobalSetting(ctx, key)
+}
+
+func (s *Service) SetGlobalSetting(ctx context.Context, key, value string) error {
+	return s.Store.SetGlobalSetting(ctx, key, value)
+}
+
 func choose(value, fallback string) string {
 	v := strings.TrimSpace(value)
 	if v == "" {

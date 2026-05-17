@@ -153,6 +153,27 @@
       renderEmbeddingStatus(out.status || {});
     }
 
+    async function loadGlobalMessage() {
+      try {
+        const fetchSetting = async (key) => {
+          const out = await AdminCommon.api(`/api/admin/settings/${key}`);
+          return out.value;
+        };
+
+        const [msg, nType, bText, bEnabled] = await Promise.all([
+          fetchSetting('dashboard_message'),
+          fetchSetting('notice_type'),
+          fetchSetting('banner_text'),
+          fetchSetting('banner_enabled'),
+        ]);
+
+        document.getElementById('global_message').value = msg || '';
+        document.getElementById('notice_type').value = nType || 'info';
+        document.getElementById('banner_text').value = bText || '';
+        document.getElementById('banner_enabled').checked = bEnabled === 'true';
+      } catch (_) {}
+    }
+
     async function boot() {
       const user = await AdminCommon.requireAuth();
       if (!user) return;
@@ -160,6 +181,7 @@
       const jobs = await loadJobs();
       renderJobsList(jobs);
       await loadEmbeddingStatus();
+      await loadGlobalMessage();
     }
 
     async function loadStats() {
@@ -220,6 +242,31 @@
         statusEl.textContent = `Scanned ${r.blogs_scanned || 0}, updated ${r.updated || 0}`;
       } catch (err) {
         statusEl.textContent = `Sync failed: ${err.message}`;
+      }
+    };
+
+    document.getElementById('save_message_btn').onclick = async () => {
+      const status = document.getElementById('save_message_status');
+      status.textContent = 'Saving...';
+      try {
+        const updateSetting = (key, value) => {
+          return AdminCommon.api(`/api/admin/settings/${key}`, {
+            method: 'PUT',
+            body: JSON.stringify({ value: String(value) })
+          });
+        };
+
+        await Promise.all([
+          updateSetting('dashboard_message', document.getElementById('global_message').value),
+          updateSetting('notice_type', document.getElementById('notice_type').value),
+          updateSetting('banner_text', document.getElementById('banner_text').value),
+          updateSetting('banner_enabled', document.getElementById('banner_enabled').checked),
+        ]);
+
+        status.textContent = 'Settings Applied';
+        setTimeout(() => { status.textContent = ''; }, 3000);
+      } catch (err) {
+        status.textContent = `Error: ${err.message}`;
       }
     };
 
