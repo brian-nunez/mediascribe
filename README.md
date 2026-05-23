@@ -1,6 +1,6 @@
 # Local Technical Video-to-Blog System
 
-Local-first technical video analysis pipeline using Go, Echo, templ, TailwindCSS, SQLite, local artifacts, and Ollama-hosted models.
+Local-first technical video analysis pipeline using Go, Echo, templ, TailwindCSS, SQLite, local artifacts, and Ollama- or llama.cpp-hosted models.
 
 ## Features
 
@@ -55,6 +55,8 @@ export ADMIN_COOKIE_NAME=vtb_admin_session
 export OTEL_ENABLED=false
 export OTEL_EXPORTER_OTLP_ENDPOINT=localhost:4317
 ```
+
+Model base URLs can point at Ollama servers or llama.cpp servers. The client first uses Ollama endpoints, then automatically falls back to llama.cpp legacy endpoints (`/completion`, `/embedding`) and OpenAI-compatible llama.cpp endpoints (`/v1/chat/completions`, `/v1/embeddings`) when those Ollama routes are unavailable.
 
 2. Run:
 
