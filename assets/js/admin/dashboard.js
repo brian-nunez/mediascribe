@@ -33,11 +33,48 @@
     let embeddingsPollTimer = null;
     let statsPollTimer = null;
 
-    function stageStateFor(job, stage, stageIndex, currentIndex) {
-      if (job.status === 'complete') return 'done';
-      if (job.status === 'failed' && job.current_stage === stage) return 'failed';
-      if (job.status === 'running' && job.current_stage === stage) return 'running';
-      if (currentIndex >= 0 && stageIndex < currentIndex) return 'done';
+    function normalizedStatus(job) {
+      return String(job?.status || '').trim().toLowerCase();
+    }
+
+    function normalizedCurrentStage(job, status) {
+      const stage = String(job?.current_stage || '').trim();
+      if (stage) return stage;
+      if (status === 'complete') return 'mark_complete';
+      return 'create_job';
+    }
+
+    function progressSnapshot(job) {
+      const status = normalizedStatus(job);
+      const currentStage = normalizedCurrentStage(job, status);
+      let currentIndex = STAGES.indexOf(currentStage);
+      if (status === 'complete') currentIndex = STAGES.length - 1;
+      if (currentIndex < 0) currentIndex = 0;
+
+      let completedCount = 0;
+      if (status === 'complete') {
+        completedCount = STAGES.length;
+      } else if (status === 'running' || status === 'failed') {
+        completedCount = currentIndex;
+      }
+
+      return {
+        status,
+        currentStage,
+        currentIndex,
+        completedCount,
+        percent: Math.round((completedCount / STAGES.length) * 100),
+        stageNumber: Math.min(currentIndex + 1, STAGES.length),
+        totalStages: STAGES.length,
+      };
+    }
+
+    function stageStateFor(snapshot, stage, stageIndex) {
+      if (snapshot.status === 'complete') return 'done';
+      if (stageIndex < snapshot.currentIndex && (snapshot.status === 'running' || snapshot.status === 'failed')) return 'done';
+      if (snapshot.status === 'failed' && snapshot.currentStage === stage) return 'failed';
+      if (snapshot.status === 'running' && snapshot.currentStage === stage) return 'running';
+      if (snapshot.status === 'queued' && snapshot.currentStage === stage) return 'queued';
       return 'pending';
     }
 
@@ -62,6 +99,8 @@
 
       for (const job of jobs) {
         const selected = job.id === selectedJobID;
+        const snapshot = progressSnapshot(job);
+        const stageLabel = FRIENDLY_STAGE[snapshot.currentStage] || snapshot.currentStage || '-';
         const row = document.createElement('button');
         row.type = 'button';
         row.className = `w-full rounded-lg border p-2 text-left transition ${selected ? 'border-slate-900 bg-slate-50' : 'border-slate-200 bg-white hover:border-slate-300'}`;
@@ -70,7 +109,11 @@
             <span class=\"text-xs font-semibold text-slate-800\">${AdminCommon.escapeHTML(job.id.slice(0, 8))}</span>
             <span class=\"rounded border px-1.5 py-0.5 text-[10px] ${badgeClass(job.status)}\">${AdminCommon.escapeHTML(job.status)}</span>
           </div>
-          <p class=\"mt-1 text-xs text-slate-500\">${AdminCommon.escapeHTML(FRIENDLY_STAGE[job.current_stage] || job.current_stage || '-')}</p>
+          <p class=\"mt-1 text-xs text-slate-500\">${AdminCommon.escapeHTML(stageLabel)}</p>
+          <div class=\"mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200\">
+            <div class=\"h-full rounded-full ${snapshot.status === 'failed' ? 'bg-red-500' : snapshot.status === 'complete' ? 'bg-emerald-500' : 'bg-blue-500'}\" style=\"width: ${snapshot.percent}%\"></div>
+          </div>
+          <p class=\"mt-1 text-[11px] text-slate-500\">${snapshot.percent}% · stage ${snapshot.stageNumber}/${snapshot.totalStages}</p>
           <p class=\"mt-1 text-[11px] text-slate-500\">${AdminCommon.escapeHTML(job.main_model || '')}</p>
         `;
         row.onclick = () => {
@@ -92,15 +135,17 @@
         return;
       }
 
-      const currentIndex = STAGES.indexOf(job.current_stage || '');
+      const snapshot = progressSnapshot(job);
       const stageRows = STAGES.map((stage, idx) => {
-        const st = stageStateFor(job, stage, idx, currentIndex);
+        const st = stageStateFor(snapshot, stage, idx);
         let dot = 'bg-slate-300';
         let text = 'text-slate-500';
         if (st === 'done') { dot = 'bg-emerald-500'; text = 'text-emerald-700'; }
         if (st === 'running') { dot = 'bg-blue-500'; text = 'text-blue-700'; }
         if (st === 'failed') { dot = 'bg-red-500'; text = 'text-red-700'; }
-        return `<div class=\"flex items-center gap-2\"><span class=\"h-2.5 w-2.5 rounded-full ${dot}\"></span><span class=\"text-xs ${text}\">${AdminCommon.escapeHTML(FRIENDLY_STAGE[stage] || stage)}</span></div>`;
+        if (st === 'queued') { dot = 'bg-slate-400'; text = 'text-slate-700'; }
+        const stateLabel = st === 'done' ? 'Done' : st === 'running' ? 'Running' : st === 'failed' ? 'Failed' : st === 'queued' ? 'Queued' : 'Pending';
+        return `<div class=\"flex items-center justify-between gap-2\"><div class=\"flex min-w-0 items-center gap-2\"><span class=\"h-2.5 w-2.5 shrink-0 rounded-full ${dot}\"></span><span class=\"truncate text-xs ${text}\">${AdminCommon.escapeHTML(FRIENDLY_STAGE[stage] || stage)}</span></div><span class=\"text-[10px] uppercase text-slate-400\">${stateLabel}</span></div>`;
       }).join('');
 
       const errorBlock = job.error_message
@@ -115,7 +160,16 @@
           <p class=\"text-sm font-semibold text-slate-900\">Job ${AdminCommon.escapeHTML(job.id)}</p>
           <span class=\"rounded border px-2 py-0.5 text-xs ${badgeClass(job.status)}\">${AdminCommon.escapeHTML(job.status)}</span>
         </div>
-        <p class=\"mt-2 text-xs text-slate-500\">Current stage: ${AdminCommon.escapeHTML(FRIENDLY_STAGE[job.current_stage] || job.current_stage || '-')}</p>
+        <p class=\"mt-2 text-xs text-slate-500\">Current stage: ${AdminCommon.escapeHTML(FRIENDLY_STAGE[snapshot.currentStage] || snapshot.currentStage || '-')}</p>
+        <div class=\"mt-3\">
+          <div class=\"flex items-center justify-between text-[11px] text-slate-500\">
+            <span>${snapshot.percent}% complete</span>
+            <span>Stage ${snapshot.stageNumber}/${snapshot.totalStages}</span>
+          </div>
+          <div class=\"mt-1 h-2 overflow-hidden rounded-full bg-slate-200\">
+            <div class=\"h-full rounded-full ${snapshot.status === 'failed' ? 'bg-red-500' : snapshot.status === 'complete' ? 'bg-emerald-500' : 'bg-blue-500'}\" style=\"width: ${snapshot.percent}%\"></div>
+          </div>
+        </div>
         <div class=\"mt-2 rounded-lg border border-slate-200 bg-white p-2\">
           <p class=\"text-[11px] font-semibold uppercase tracking-wide text-slate-500\">Source</p>
           <div class=\"mt-1 text-xs\">${srcHTML}</div>

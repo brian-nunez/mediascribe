@@ -30,7 +30,7 @@ func GenerateBlogOutputEmbeddings(ctx context.Context, store *db.Store, job db.J
 	}
 
 	for _, item := range outputs {
-		vector, err := embedder.Embed(ctx, item.Markdown)
+		vector, err := embedMarkdownForBlogOutput(ctx, embedder, item.Markdown)
 		if err != nil {
 			return fmt.Errorf("embed blog output %s: %w", item.Language, err)
 		}
@@ -53,6 +53,10 @@ func GenerateBlogOutputEmbeddings(ctx context.Context, store *db.Store, job db.J
 		}
 	}
 	return nil
+}
+
+func embedMarkdownForBlogOutput(ctx context.Context, embedder embeddings.Embedder, markdown string) ([]float32, error) {
+	return embeddings.BoundedEmbed(ctx, embedder, markdown)
 }
 
 type blogOutputFile struct {

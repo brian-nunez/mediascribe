@@ -586,7 +586,7 @@ func (s *Service) RebuildAllEmbeddingsNow(ctx context.Context) (EmbeddingRebuild
 			records := make([]db.ChunkEmbedding, 0, len(chunks))
 			now := time.Now().UTC()
 			for _, chunk := range chunks {
-				vector, err := embedder.Embed(ctx, chunk.Content)
+				vector, err := embeddings.BoundedEmbed(ctx, embedder, chunk.Content)
 				if err != nil {
 					return out, fmt.Errorf("job %s chunk %d: %w", job.ID, chunk.ChunkIndex, err)
 				}
@@ -607,8 +607,14 @@ func (s *Service) RebuildAllEmbeddingsNow(ctx context.Context) (EmbeddingRebuild
 			chunksRebuilt += len(records)
 		}
 
-		if err := pipeline.GenerateBlogOutputEmbeddings(ctx, s.Store, jobForEmbedding, embedder); err == nil {
-			outputsRebuilt++
+		if job.Status == "complete" {
+			finalPath := filepath.Join(job.ArtifactDir, "final.md")
+			if _, err := os.Stat(finalPath); err == nil {
+				if err := pipeline.GenerateBlogOutputEmbeddings(ctx, s.Store, jobForEmbedding, embedder); err != nil {
+					return out, fmt.Errorf("job %s output embeddings: %w", job.ID, err)
+				}
+				outputsRebuilt++
+			}
 		}
 
 		out.ProcessedJobs = i + 1
@@ -675,7 +681,7 @@ func (s *Service) rebuildAllEmbeddingsWorker() {
 			records := make([]db.ChunkEmbedding, 0, len(chunks))
 			now := time.Now().UTC()
 			for _, chunk := range chunks {
-				vector, err := embedder.Embed(ctx, chunk.Content)
+				vector, err := embeddings.BoundedEmbed(ctx, embedder, chunk.Content)
 				if err != nil {
 					s.setEmbeddingRebuildFailure(fmt.Errorf("job %s chunk %d: %w", job.ID, chunk.ChunkIndex, err))
 					return
@@ -698,8 +704,15 @@ func (s *Service) rebuildAllEmbeddingsWorker() {
 			chunksRebuilt += len(records)
 		}
 
-		if err := pipeline.GenerateBlogOutputEmbeddings(ctx, s.Store, jobForEmbedding, embedder); err == nil {
-			outputsRebuilt++
+		if job.Status == "complete" {
+			finalPath := filepath.Join(job.ArtifactDir, "final.md")
+			if _, err := os.Stat(finalPath); err == nil {
+				if err := pipeline.GenerateBlogOutputEmbeddings(ctx, s.Store, jobForEmbedding, embedder); err != nil {
+					s.setEmbeddingRebuildFailure(fmt.Errorf("job %s output embeddings: %w", job.ID, err))
+					return
+				}
+				outputsRebuilt++
+			}
 		}
 
 		s.mu.Lock()

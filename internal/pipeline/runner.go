@@ -197,7 +197,7 @@ func runGenerateEmbeddings(ctx context.Context, store *db.Store, job db.Job, emb
 	records := make([]db.ChunkEmbedding, 0, len(chunks))
 	now := time.Now().UTC()
 	for _, chunk := range chunks {
-		vector, err := embedder.Embed(ctx, chunk.Content)
+		vector, err := embeddings.BoundedEmbed(ctx, embedder, chunk.Content)
 		if err != nil {
 			return fmt.Errorf("embed chunk %d: %w", chunk.ChunkIndex, err)
 		}
